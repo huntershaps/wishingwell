@@ -38,7 +38,7 @@ export function ShareButton({
       toast("Link copied. Send it to whoever needs it.", { tone: "good" });
       setTimeout(() => setCopied(false), 2400);
     } catch {
-      toast("Copying was blocked — select the link and copy it manually.", { tone: "warn" });
+      toast("Copying was blocked. Select the link and copy it manually.", { tone: "warn" });
     }
   }
 

@@ -204,7 +204,7 @@ function addItem(spec: ItemSpec, position: number) {
       id(),
       itemId,
       `/media/${photo}.jpg`,
-      credit?.alt ? `${spec.name} — ${credit.alt}` : spec.name,
+      credit?.alt ? `${spec.name}: ${credit.alt}` : spec.name,
       credit?.photographer ? `Photo: ${credit.photographer}` : null,
       1600,
       Math.round(1600 / (credit?.ratio ?? 1.5)),
@@ -350,7 +350,7 @@ addList({
   title: "Graduation",
   icon: "🎓",
   description:
-    "Walking on September 5th. My family keeps asking, so here it is — mostly things I will still be using in ten years.",
+    "Walking on September 5th. My family keeps asking, so here it is. Mostly things I will still be using in ten years.",
   cover: "cover-graduation",
   accent: "madder",
   occasion: "graduation",
@@ -420,7 +420,7 @@ addItem(
     variant: "Body only",
     feature: true,
     description:
-      "33MP full frame, 4K60, two card slots. Body only — the lens I want is already further down this list.",
+      "33MP full frame, 4K60, two card slots. Body only. The lens I want is already further down this list.",
     why:
       "I have been shooting cards and events on a borrowed body for two years, and I am tired of handing it back. The files hold up when I crop deep into a corner, which is the whole job with cards, and it finally handles a badly lit gym without turning everyone to mush. This is the one I would keep for a decade.",
     photos: ["sony-a7", "sony-a7-alt", "darkroom"],
@@ -441,7 +441,7 @@ addItem(
     url: "https://www.bhphotovideo.com",
     category: "Lenses",
     tags: ["prime", "35mm"],
-    description: "E-mount. The newer DN version — lighter, and the focus is quiet enough for video.",
+    description: "E-mount. The newer DN version, which is lighter, and the focus is quiet enough for video.",
     why:
       "Every photo I like, I have already cropped to about 35mm. Fast enough for gym light, wide enough for a table of cards without bending the corners.",
     photos: ["sigma-lens"],
@@ -494,7 +494,7 @@ addItem(
   {
     key: "canonet",
     list: "photo",
-    name: "Fujifilm X100F — used",
+    name: "Fujifilm X100F (used)",
     price: 89_900,
     priority: "medium",
     store: "KEH Camera",
@@ -503,7 +503,7 @@ addItem(
     tags: ["compact", "fixed lens"],
     color: "Silver",
     description:
-      "Silver body, the fixed 23mm. Used is completely fine — I would rather have one that has already been somewhere.",
+      "Silver body, the fixed 23mm. Used is completely fine. I would rather have one that has already been somewhere.",
     why:
       "Something to carry on days when I do not want to make any decisions. My grandfather kept a little rangefinder in his coat pocket for forty years, and this is the closest thing to that habit I can actually buy.",
     photos: ["film-camera"],
@@ -533,7 +533,7 @@ addItem(
   {
     key: "cinestill",
     list: "photo",
-    name: "CineStill 800T — five rolls",
+    name: "CineStill 800T, five rolls",
     price: 5_995,
     priority: "someday",
     store: "Freestyle Photo",
@@ -652,7 +652,7 @@ addItem(
   {
     key: "topps75",
     list: "cards",
-    name: "1989-90 Hoops — starter lot",
+    name: "1989-90 Hoops starter lot",
     price: 42_000,
     priority: "high",
     store: "COMC",
@@ -708,7 +708,7 @@ addItem(
   {
     key: "storage",
     list: "cards",
-    name: "Storage — 800-count boxes and penny sleeves",
+    name: "Storage: 800-count boxes and penny sleeves",
     price: 4_200,
     priority: "someday",
     store: "BCW Supplies",
@@ -899,7 +899,7 @@ addItem(
     priority: "high",
     store: "Cutlery and More",
     category: "Kitchen",
-    description: "Something in the middle — sharp, balanced, dishwasher-never.",
+    description: "Something in the middle: sharp, balanced, dishwasher-never.",
     why: "I have been cooking with a knife that came in a block set and I am starting to suspect it is the reason I dislike chopping onions.",
     photos: ["chef-knife"],
     addedDaysAgo: 27,
@@ -1059,7 +1059,7 @@ addList({
   slug: "wedding",
   title: "The Wedding",
   icon: "🌿",
-  description: "April 17th, small, outdoors, fingers crossed on the weather. No gift is expected — this is only if you ask.",
+  description: "April 17th, small, outdoors, fingers crossed on the weather. No gift is expected. This is only if you ask.",
   cover: "wedding-table",
   accent: "moss",
   occasion: "wedding",
@@ -1165,7 +1165,7 @@ reserve({
   status: "reserved",
   daysAgo: 2,
   expiresInDays: 5,
-  note: "Her birthday is the 2nd — do not let me forget the cartridge.",
+  note: "Her birthday is the 2nd. Do not let me forget the cartridge.",
 });
 reserve({ item: "ryokan", buyer: "hunter", status: "purchased", daysAgo: 5 });
 reserve({ item: "stoneware", buyer: "hunter", status: "reserved", daysAgo: 6, expiresInDays: 1 });

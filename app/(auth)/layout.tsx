@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <main id="main" className="flex flex-1 items-center py-10">
           <div className="mx-auto w-full max-w-[26rem]">{children}</div>
         </main>
-        <footer className="label">Wishwell — a kinder way to be given things.</footer>
+        <footer className="label">Wishwell, a kinder way to be given things.</footer>
       </div>
 
       {/* The gallery, standing behind the door you are about to walk through. */}

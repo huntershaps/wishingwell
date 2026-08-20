@@ -17,7 +17,7 @@ export default async function NewListPage() {
       </nav>
       <h1 className="display text-[clamp(2rem,5vw,2.5rem)]">Start a list</h1>
       <p className="voice mt-2 max-w-xl text-[17px] text-muted pretty">
-        A list works best when it is about something — a date, an occasion, a corner of your life.
+        A list works best when it is about something: a date, an occasion, a corner of your life.
         You can change any of this later.
       </p>
       <div className="mt-9">

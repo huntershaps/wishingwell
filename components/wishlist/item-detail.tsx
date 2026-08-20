@@ -53,7 +53,7 @@ export function ItemDetail({
                 ? "You claimed this one. Manage it any time under Gifts I'm Getting."
                 : item.giftState === "purchased"
                   ? "Someone has already bought this. Pick something else so nothing is doubled up."
-                  : `Someone is already planning to get this. ${ownerFirstName} doesn't know — and won't.`}
+                  : `Someone is already planning to get this. ${ownerFirstName} doesn't know, and won't.`}
             </p>
           </div>
         ) : null}

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const list = getWishlistBySlug(username, slug);
   const profile = getPublicProfile(username);
   if (!list || !profile) return { title: "List not found" };
-  const title = `${list.title} — ${profile.displayName}`;
+  const title = `${list.title} · ${profile.displayName}`;
   return {
     title,
     description: list.description ?? `${profile.displayName}'s wishlist on Wishwell`,
@@ -59,7 +59,7 @@ function Locked({
       </h1>
       <p className="voice mt-4 text-[17px] text-muted pretty">
         {reason === "private"
-          ? `${ownerName} keeps this one to themselves. Nothing to see here — which is exactly how they wanted it.`
+          ? `${ownerName} keeps this one to themselves. Nothing to see here, which is exactly how they wanted it.`
           : `${ownerName} shares this list with a direct link. Ask them to send it over and it will open right up.`}
       </p>
       <div className="mt-8 flex flex-wrap gap-2.5">
@@ -299,7 +299,7 @@ export default async function WishlistPage({ params }: Params) {
               {!access.isOwner ? (
                 <p className="mb-6 max-w-2xl text-[13.5px] text-faint pretty">
                   Claim anything here and it will be marked as spoken for. {firstName} sees only that
-                  the list has activity — never what, never who.
+                  the list has activity, never what and never who.
                 </p>
               ) : null}
 

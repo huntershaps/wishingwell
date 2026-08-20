@@ -46,7 +46,7 @@ function ClaimForm({
         </span>
         <p className="text-[13.5px] leading-[1.5] text-muted pretty">
           Claiming it marks the item as spoken for so two people can&apos;t buy the same thing.{" "}
-          {list.ownerFirstName} sees that the list has activity — never the item, never your name.
+          {list.ownerFirstName} sees that the list has activity, never the item and never your name.
         </p>
       </div>
 
@@ -58,7 +58,7 @@ function ClaimForm({
 
       {!list.signedIn && list.allowGuests ? (
         <label className="mt-4 block">
-          <span className="label">Your first name — optional</span>
+          <span className="label">Your first name (optional)</span>
           <input
             name="guestName"
             className="field mt-1.5"
@@ -69,7 +69,7 @@ function ClaimForm({
       ) : null}
 
       <label className="mt-4 block">
-        <span className="label">A note to yourself — optional</span>
+        <span className="label">A note to yourself (optional)</span>
         <textarea
           name="note"
           className="field mt-1.5 min-h-[72px]"
@@ -269,7 +269,7 @@ export function GiftButton({
         description={
           justClaimed
             ? undefined
-            : `${list.ownerFirstName} will never see who claimed it — only that something on the list has been spoken for.`
+            : `${list.ownerFirstName} will never see who claimed it, only that something on the list has been spoken for.`
         }
         size="sm"
         ground={list.ground}

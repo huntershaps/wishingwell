@@ -34,7 +34,7 @@ export default async function DashboardPage() {
           </h1>
           <p className="voice mt-2 text-[17px] text-muted">
             {upcoming
-              ? `${countdownToEvent(upcoming.eventDate)?.toLowerCase() === "today" ? "Today is" : countdownToEvent(upcoming.eventDate)} — ${upcoming.title}.`
+              ? `${countdownToEvent(upcoming.eventDate)?.toLowerCase() === "today" ? "Today is" : countdownToEvent(upcoming.eventDate)}, ${upcoming.title}.`
               : lists.length
                 ? `${overview.items} things across ${overview.lists} ${overview.lists === 1 ? "list" : "lists"}.`
                 : "Let's put something on a list."}

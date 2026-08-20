@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!data) return { title: "Item not found" };
   const price = money(data.item.priceCents, data.item.currency);
   return {
-    title: `${data.item.name} — ${data.list.title}`,
+    title: `${data.item.name} · ${data.list.title}`,
     description:
       data.item.whyWant?.slice(0, 180) ??
       data.item.description ??

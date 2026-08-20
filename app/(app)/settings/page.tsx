@@ -58,7 +58,7 @@ export default async function SettingsPage() {
         <section id="gifting" className="scroll-mt-24 border-t border-rule pt-10">
           <h2 className="display text-[22px]">Gifting</h2>
           <p className="mt-1.5 max-w-xl text-[14px] text-muted pretty">
-            How claims work on your lists — who can make them, how long they last, and how much you
+            How claims work on your lists: who can make them, how long they last, and how much you
             are willing to know.
           </p>
           <div className="mt-6">

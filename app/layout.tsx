@@ -25,7 +25,7 @@ const instrument = Instrument_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Wishwell — Know exactly what they'll love",
+    default: "Wishwell: Know exactly what they'll love",
     template: "%s · Wishwell",
   },
   description:

@@ -161,11 +161,11 @@ export function ItemComposer({
               </Field>
               <Field label="Currency">
                 <select name="currency" defaultValue={item?.currency ?? "USD"} className="field">
-                  <option value="USD">USD — US dollar</option>
-                  <option value="EUR">EUR — euro</option>
-                  <option value="GBP">GBP — pound</option>
-                  <option value="CAD">CAD — Canadian dollar</option>
-                  <option value="AUD">AUD — Australian dollar</option>
+                  <option value="USD">USD (US dollar)</option>
+                  <option value="EUR">EUR (euro)</option>
+                  <option value="GBP">GBP (pound)</option>
+                  <option value="CAD">CAD (Canadian dollar)</option>
+                  <option value="AUD">AUD (Australian dollar)</option>
                 </select>
               </Field>
             </div>
@@ -251,7 +251,7 @@ export function ItemComposer({
                 name="description"
                 defaultValue={item?.description ?? ""}
                 className="field min-h-[72px]"
-                placeholder="33MP full frame, body only — the lens is further down this list."
+                placeholder="33MP full frame, body only. The lens is further down this list."
                 maxLength={600}
               />
             </Field>

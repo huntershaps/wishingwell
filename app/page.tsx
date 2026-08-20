@@ -9,7 +9,7 @@ import { Wordmark } from "@/components/brand";
 import { ClaimDemo } from "@/components/marketing/claim-demo";
 
 export const metadata: Metadata = {
-  title: "Wishwell — Know exactly what they'll love",
+  title: "Wishwell: Know exactly what they'll love",
   description:
     "Create beautiful wishlists, share the things that matter to you, and make gifting easier for everyone.",
 };
@@ -42,7 +42,7 @@ const KINDS = [
   { image: "sony-a7", label: "A camera", meta: "$2,498 · with a video note" },
   { image: "turntable", label: "A record player", meta: "$675 · Maya's dream item" },
   { image: "sneakers", label: "Sneakers", meta: "$110 · size 10.5, plain white" },
-  { image: "trading-cards", label: "A collection", meta: "$420 · the 1975 set" },
+  { image: "trading-cards", label: "A collection", meta: "$420 · the 89 Hoops set" },
   { image: "ryokan", label: "A place to stay", meta: "$340 · not a thing at all" },
   { image: "espresso", label: "A slow save", meta: "$749 · saving, not asking" },
 ];
@@ -118,7 +118,7 @@ export default async function LandingPage() {
               </h2>
               <p className="voice mt-5 text-[clamp(1.0625rem,2vw,1.25rem)] text-muted pretty">
                 Anyone can paste a link. What makes something easy to buy is knowing why it is on
-                the list at all — so every item has room for the story, in photographs, in writing,
+                the list at all, so every item has room for the story, in photographs, in writing,
                 or in a video note thirty seconds long.
               </p>
             </div>
@@ -146,7 +146,7 @@ export default async function LandingPage() {
                       {voice.quote}
                     </blockquote>
                     <figcaption className="label mt-3.5">
-                      {voice.person} — {voice.name}
+                      {voice.person} · {voice.name}
                     </figcaption>
                   </figure>
                 </Reveal>
@@ -174,7 +174,7 @@ export default async function LandingPage() {
                 {
                   n: "02",
                   title: "Share your list",
-                  body: "One link, and a preview that actually looks like something. Public, link-only, or private — your call, per list.",
+                  body: "One link, and a preview that actually looks like something. Public, link-only, or private. Your call, per list.",
                   aside: "No account needed to open it, or to give something.",
                 },
                 {
@@ -214,7 +214,7 @@ export default async function LandingPage() {
               </h2>
               <p className="voice mt-5 text-[clamp(1.0625rem,2vw,1.25rem)] text-muted pretty">
                 A claim has to be public enough that nobody buys the same thing twice, and private
-                enough that the surprise survives. So it is both — depending on who is looking.
+                enough that the surprise survives. So it is both, depending on who is looking.
               </p>
             </div>
 
@@ -274,7 +274,7 @@ export default async function LandingPage() {
                   </div>
                 </div>
                 <p className="mt-6 border-t border-rule pt-4 text-[14.5px] text-muted pretty">
-                  Surprise mode is on by default, and it is enforced on the server — the answer is
+                  Surprise mode is on by default, and it is enforced on the server, so the answer is
                   never sent to his browser to be dug out later.
                 </p>
               </article>
@@ -342,7 +342,7 @@ export default async function LandingPage() {
                 Your people want to get this right.
               </h2>
               <p className="voice mt-5 max-w-lg text-[clamp(1.0625rem,2vw,1.3125rem)] text-muted pretty">
-                Give them one good link. Start with a single list — the thing you have been thinking
+                Give them one good link. Start with a single list. The thing you have been thinking
                 about for months already counts.
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
