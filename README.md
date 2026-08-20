@@ -7,10 +7,15 @@ Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, and SQLit
 
 ```bash
 npm install
-npm run media   # downloads the demo photography, builds the demo video notes
+npm run media   # fetches the demo photography, builds the demo video notes
 npm run seed    # builds the demo database
 npm run dev     # http://localhost:3000
 ```
+
+`npm run media` is not optional on a fresh clone: the photographs are other
+people's work and are not committed here, so `public/media` starts empty and the
+seed reads its credits from it. Every image is pinned by id in
+`scripts/media-manifest.mjs`, so the set you get is the set in the screenshots.
 
 Sign in as the demo account with **hunter@wishwell.app** / **wishwell**. Every demo
 person uses the same password (`maya@`, `dev@`, `nora@`, `theo@wishwell.app`).
