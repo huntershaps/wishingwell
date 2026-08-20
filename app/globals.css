@@ -1,0 +1,473 @@
+@import "tailwindcss";
+
+/* The SQLite file keeps an exclusive lock on its WAL sidecars; scanning them
+   for class names crashes the bundler and finds nothing either way. */
+@source not "../.data";
+@source not "../public/uploads";
+
+/*  Wishwell design system
+    ----------------------
+    Two grounds, one system. THE STUDIO (light) is where you work on your own
+    lists: paper, hairlines, everything legible at a glance. THE GALLERY (dark)
+    is where you look at someone else's: lights down, photographs lit.
+    Components below read semantic tokens, so the same component is correct on
+    either ground without a single conditional.                               */
+
+@theme {
+  /* Ground-dependent. These carry the STUDIO values by default; .ground-gallery
+     redefines the same names further down the tree. They are overridden
+     directly rather than through an alias, because a custom property that
+     points at another one resolves once, where it is declared — an alias on
+     :root would freeze every ground to whatever :root happened to hold. */
+  --color-bg: #f7f3f1;
+  --color-bg-sunk: #efe8e5;
+  --color-surface: #fffdfc;
+  --color-fg: #1e1418;
+  --color-muted: #5c4d53;
+  --color-faint: #6f6266;
+  --color-rule: #e4dbd7;
+  --color-rule-strong: #d2c5c0;
+  --color-accent: #b0304f;
+  --color-accent-quiet: #f6e7ea;
+  --color-on-accent: #fffaf8;
+
+  /* Fixed brand pigments */
+  --color-madder: #b0304f;
+  --color-madder-lift: #e4738c;
+  --color-saffron: #c9822c;
+  --color-saffron-lift: #e6ac5f;
+  --color-moss: #4c7a5d;
+  --color-moss-lift: #7fae8e;
+  --color-plum: #6b3f78;
+  --color-plum-lift: #b283bd;
+  --color-indigo: #3f4f8a;
+  --color-indigo-lift: #8b9ad4;
+
+  --font-display: var(--font-bricolage), "Helvetica Neue", sans-serif;
+  --font-voice: var(--font-newsreader), Georgia, serif;
+  --font-ui: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------------------------------------------------------------- grounds */
+
+.ground-studio {
+  --color-bg: #f7f3f1;
+  --color-bg-sunk: #efe8e5;
+  --color-surface: #fffdfc;
+  --color-fg: #1e1418;
+  --color-muted: #5c4d53;
+  --color-faint: #6f6266;
+  --color-rule: #e4dbd7;
+  --color-rule-strong: #d2c5c0;
+  color-scheme: light;
+}
+
+.ground-gallery {
+  --color-bg: #150f13;
+  --color-bg-sunk: #0e090c;
+  --color-surface: #1e161b;
+  --color-fg: #f6efec;
+  --color-muted: #bdaab1;
+  --color-faint: #9a868d;
+  --color-rule: rgba(246, 239, 236, 0.12);
+  --color-rule-strong: rgba(246, 239, 236, 0.24);
+  color-scheme: dark;
+}
+
+/* Per-person accent, in two weights: the deeper one carries a light ground, the
+   lifted one carries a dark one. */
+[data-accent="madder"] { --accent-base: #b0304f; --accent-lift: #dd5f78; }
+[data-accent="saffron"] { --accent-base: #8f5a13; --accent-lift: #e6ac5f; }
+[data-accent="moss"] { --accent-base: #416a4f; --accent-lift: #7fae8e; }
+[data-accent="plum"] { --accent-base: #6b3f78; --accent-lift: #b283bd; }
+[data-accent="indigo"] { --accent-base: #3f4f8a; --accent-lift: #8b9ad4; }
+
+/* Resolved again at every accent boundary, so a list with its own accent inside
+   a ground picks up the right weight instead of the one the ground froze. */
+/* The element that switches ground often carries the accent too, and the body
+   is always a studio — so the same-element case is listed explicitly. Without
+   it, `.ground-studio [data-accent]` from the body outranks `.ground-gallery`
+   and every gallery page quietly falls back to the light-ground accent. */
+.ground-studio,
+.ground-studio[data-accent],
+.ground-studio [data-accent] {
+  --color-accent: var(--accent-base, #b0304f);
+  --color-accent-quiet: color-mix(in oklab, var(--accent-base, #b0304f) 10%, #fffdfc);
+  --color-on-accent: #fffaf8;
+}
+
+.ground-gallery,
+.ground-gallery[data-accent],
+.ground-gallery [data-accent] {
+  --color-accent: var(--accent-lift, #dd5f78);
+  --color-accent-quiet: color-mix(in oklab, var(--accent-lift, #dd5f78) 16%, #150f13);
+  --color-on-accent: #1a0d12;
+}
+
+/* ------------------------------------------------------------------- base */
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* The grain is what keeps large flat areas from reading as flat plastic.
+   One fixed layer, no repaint cost while scrolling. */
+.grained::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ------------------------------------------------------------- typography */
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.028em;
+  line-height: 0.98;
+  font-variation-settings: "wdth" 100, "opsz" 32;
+}
+
+.voice {
+  font-family: var(--font-voice);
+  font-weight: 380;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+}
+
+.voice-em {
+  font-family: var(--font-voice);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Small-caps metadata line, the way a gallery label is set. */
+.label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.balance { text-wrap: balance; }
+.pretty { text-wrap: pretty; }
+
+/* ------------------------------------------------------------- components */
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.btn {
+  --btn-bg: transparent;
+  --btn-fg: var(--color-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6875rem 1.125rem;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    transform 0.16s var(--ease-out-quint),
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.btn:active { transform: translateY(1px) scale(0.995); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  --btn-bg: var(--color-accent);
+  --btn-fg: var(--color-on-accent);
+  box-shadow: 0 1px 2px rgba(30, 20, 24, 0.16);
+}
+.btn-primary:hover:not(:disabled) {
+  --btn-bg: color-mix(in oklab, var(--color-accent) 88%, var(--color-fg));
+  box-shadow: 0 4px 14px -4px color-mix(in oklab, var(--color-accent) 60%, transparent);
+}
+
+.btn-solid {
+  --btn-bg: var(--color-fg);
+  --btn-fg: var(--color-bg);
+}
+.btn-solid:hover:not(:disabled) { --btn-bg: color-mix(in oklab, var(--color-fg) 86%, var(--color-accent)); }
+
+.btn-outline { border-color: var(--color-rule-strong); }
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--color-fg);
+  background: color-mix(in oklab, var(--color-fg) 5%, transparent);
+}
+
+.btn-ghost { padding-inline: 0.625rem; }
+.btn-ghost:hover:not(:disabled) { background: color-mix(in oklab, var(--color-fg) 6%, transparent); }
+
+.btn-sm { min-height: 36px; padding: 0.4375rem 0.75rem; font-size: 13px; }
+
+.field {
+  width: 100%;
+  padding: 0.6875rem 0.875rem;
+  min-height: 44px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 15px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.field::placeholder { color: var(--color-faint); }
+.field:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent);
+}
+.field[aria-invalid="true"] { border-color: var(--color-madder); }
+
+textarea.field { min-height: 96px; resize: vertical; line-height: 1.55; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-rule-strong);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------ the hold tag ---- */
+/*  The signature object. A paper tag, tied on with string, that says an item
+    is spoken for. Rotated a hair so it reads as a physical thing set down on
+    the photograph rather than a badge stamped into the layout.              */
+
+.holdtag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.3125rem 0.625rem 0.3125rem 0.875rem;
+  background: #f2e9e2;
+  color: #34222a;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 2px 4px 4px 2px;
+  transform: rotate(-1.6deg);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  clip-path: polygon(0.5rem 0, 100% 0, 100% 100%, 0.5rem 100%, 0 50%);
+  padding-left: 1rem;
+}
+.holdtag::before {
+  content: "";
+  position: absolute;
+  left: 0.375rem;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #34222a;
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+.holdtag-purchased { background: #dfe8de; color: #22301f; }
+.holdtag-mine { background: var(--color-saffron-lift); color: #2c1c08; }
+
+/* Tag arriving: swings in from the string like it was just tied on. */
+@keyframes tag-tie {
+  0% { opacity: 0; transform: rotate(-16deg) translateY(-14px) scale(0.94); }
+  55% { opacity: 1; transform: rotate(3.5deg) translateY(0) scale(1); }
+  78% { transform: rotate(-3deg); }
+  100% { transform: rotate(-1.6deg); }
+}
+.holdtag-enter { animation: tag-tie 0.62s var(--ease-out-quint) both; }
+
+/* ------------------------------------------------------- the secret veil - */
+/*  What the owner sees instead of a spoiler: the shape of the news, none of
+    the content.                                                             */
+
+.veil {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.veil > * { filter: blur(9px) saturate(0.6); opacity: 0.55; pointer-events: none; user-select: none; }
+.veil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-fg) 5%, transparent) 0 8px,
+    transparent 8px 16px
+  );
+}
+
+/* ------------------------------------------------------------- reveals --- */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes unmask {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.reveal { opacity: 0; }
+.reveal.is-in { animation: rise 0.72s var(--ease-out-quint) both; }
+.reveal-mask { opacity: 0; }
+.reveal-mask.is-in { animation: unmask 0.9s var(--ease-out-quint) both, fade 0.3s ease both; }
+
+/* -------------------------------------------------------------- overlays - */
+
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: color-mix(in oklab, #120a0e 72%, transparent);
+  backdrop-filter: blur(3px);
+  animation: overlay-in 0.2s ease both;
+}
+.dialog { animation: dialog-in 0.32s var(--ease-out-quint) both; }
+.sheet { animation: sheet-in 0.36s var(--ease-out-quint) both; }
+
+/* --------------------------------------------------------------- skeleton */
+
+@keyframes shimmer { to { background-position-x: -200%; } }
+.skeleton {
+  background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--color-fg) 7%, transparent) 25%,
+      color-mix(in oklab, var(--color-fg) 12%, transparent) 37%,
+      color-mix(in oklab, var(--color-fg) 7%, transparent) 63%
+    )
+    0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--radius-xs);
+}
+
+/* ----------------------------------------------------------------- misc -- */
+
+.hairline-grid { border-top: 1px solid var(--color-rule); }
+
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+}
+.scroll-x::-webkit-scrollbar { display: none; }
+
+.link-underline {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, currentColor 35%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.link-underline:hover { text-decoration-color: currentColor; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 200;
+  transform: translateY(-150%);
+  transition: transform 0.18s var(--ease-out-quint);
+}
+.skip-link:focus { transform: none; }
+
+/* --------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal,
+  .reveal-mask { opacity: 1; }
+  .holdtag { transform: rotate(-1.6deg); }
+}
