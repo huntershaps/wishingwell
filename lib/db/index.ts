@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
 import { randomUUID, randomBytes } from "node:crypto";
+import { DATA_DIR } from "../paths";
 import { SCHEMA } from "./schema";
 
 declare global {
@@ -10,9 +11,9 @@ declare global {
 }
 
 function open(): Database.Database {
-  const dir = process.env.WISHWELL_DATA_DIR ?? path.join(process.cwd(), ".data");
-  fs.mkdirSync(dir, { recursive: true });
-  const db = new Database(path.join(dir, "wishwell.db"));
+  const dir = DATA_DIR;
+  fs.mkdirSync(/*turbopackIgnore: true*/ dir, { recursive: true });
+  const db = new Database(path.join(/*turbopackIgnore: true*/ dir, "wishwell.db"));
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");

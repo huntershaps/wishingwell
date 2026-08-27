@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+.next
+.data
+dist
+*.tsbuildinfo
+.env*
+public/uploads
+shots

@@ -7,11 +7,11 @@ import path from "node:path";
 import { requireUser } from "@/lib/auth";
 import { db, id, now, token, tx } from "@/lib/db";
 import { slugify } from "@/lib/format";
+import { UPLOAD_DIR } from "@/lib/paths";
 import type { Priority, Visibility } from "@/lib/types";
 
 export type ListFormState = { error?: string; field?: string } | null;
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const MAX_IMAGE = 8 * 1024 * 1024;
 const MAX_VIDEO = 40 * 1024 * 1024;
 
@@ -54,9 +54,12 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
       "video/quicktime": "mp4",
     })[file.type] ?? (isVideo ? "mp4" : "jpg");
 
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  await fs.mkdir(/*turbopackIgnore: true*/ UPLOAD_DIR, { recursive: true });
   const name = `${token(12)}.${ext}`;
-  await fs.writeFile(path.join(UPLOAD_DIR, name), Buffer.from(await file.arrayBuffer()));
+  await fs.writeFile(
+    path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, name),
+    Buffer.from(await file.arrayBuffer()),
+  );
   return { url: `/uploads/${name}`, kind: isVideo ? "video" : "image" };
 }
 

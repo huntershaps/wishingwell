@@ -45,7 +45,9 @@ next-env.d.ts
 /.data
 /public/uploads
 
-# The demo photography and the video notes made from it. Reproducible with
-# `npm run media` — the manifest pins every photo by id — so 15MB of other
-# people's photographs does not need to live in this repository.
-/public/media
+# The demo photography and the video notes made from it used to be left out and
+# regenerated with `npm run media`. They are committed now: the deployed image is
+# built in the cloud from this repository, and both the seed and the demo itself
+# need the photographs to exist at build time. Fetching them mid-build would put
+# the deploy at the mercy of a third party's rate limiter. Credit for every photo
+# is in public/media/credits.json.

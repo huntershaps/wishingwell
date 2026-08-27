@@ -13,6 +13,7 @@
     "verify:flows": "node scripts/verify-flows.mjs",
     "verify:a11y": "node scripts/verify-a11y.mjs",
     "shot": "node scripts/shot.mjs",
+    "reset:demo": "node scripts/reset-demo.mjs",
     "verify:sweep": "node scripts/verify-sweep.mjs",
     "verify": "npm run seed && npm run verify:reservations && npm run seed && npm run verify:flows && npm run seed && npm run verify:sweep && npm run seed && npm run verify:a11y && npm run seed"
   },
