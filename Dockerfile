@@ -1,6 +1,11 @@
 # Wishwell as a single container: the Next server, and a SQLite database on a
 # mounted volume at /data. Nothing else — no managed database, no object store.
 #
+# This is the fallback deployment. The app normally runs on Vercel against Turso,
+# which the same code reaches through the same libSQL client; here that client
+# opens a plain file instead. Useful for any host that runs a container and
+# mounts a disk.
+#
 #   docker build -t wishwell .
 #   docker run -p 3000:3000 -v wishwell-data:/data wishwell
 
@@ -10,8 +15,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # ---------------------------------------------------------------- dependencies
 FROM base AS deps
 WORKDIR /app
-# better-sqlite3 falls back to compiling from source when no prebuilt binary
-# matches this platform, so the toolchain has to be here.
+# libSQL ships prebuilt bindings for common platforms and compiles from source
+# when it has to, so the toolchain earns its place in this stage.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -48,11 +53,11 @@ RUN groupadd --system --gid 1001 wishwell \
 
 COPY --from=builder /app/public ./public
 # The traced server bundle unpacks to /app, so server.js and the modules it kept
-# land next to each other and scripts/ can resolve better-sqlite3 from /app.
+# land next to each other.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/seed ./seed
-COPY --from=builder /app/scripts/start.mjs /app/scripts/reset-demo.mjs ./scripts/
+COPY --from=builder /app/scripts/start.mjs ./scripts/
 
 RUN mkdir -p /data /data/uploads && chown -R wishwell:wishwell /data /app/seed
 

@@ -16,16 +16,16 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const list = getWishlistByShareToken(token);
+  const list = await getWishlistByShareToken(token);
   if (!list) redirect("/");
 
-  const owner = db
+  const owner = await db
     .prepare(`SELECT username FROM profiles WHERE user_id = ?`)
     .get(list.userId) as { username: string } | undefined;
   if (!owner) redirect("/");
 
   await rememberKey(list.shareToken);
-  recordEvent(list.id, "share");
+  await recordEvent(list.id, "share");
 
   redirect(`/${owner.username}/${list.slug}`);
 }

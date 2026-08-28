@@ -22,9 +22,9 @@ export async function loadItemPage(
   slug: string,
   itemId: string,
 ): Promise<ItemPageData | null> {
-  const profile = getPublicProfile(username);
+  const profile = await getPublicProfile(username);
   if (!profile) return null;
-  const list = getWishlistBySlug(username, slug);
+  const list = await getWishlistBySlug(username, slug);
   if (!list) return null;
 
   const user = await getCurrentUser();
@@ -32,12 +32,13 @@ export async function loadItemPage(
   const access = await checkAccess(list, viewer);
   if (!access.allowed) return null;
 
-  const ownerSettings = getSettings(list.userId);
-  const item = getItems(list.id, {
+  const ownerSettings = await getSettings(list.userId);
+  const items = await getItems(list.id, {
     viewer,
     isOwner: access.isOwner,
     surpriseMode: ownerSettings.surpriseMode,
-  }).find((i) => i.id === itemId);
+  });
+  const item = items.find((i) => i.id === itemId);
   if (!item) return null;
 
   return { item, list, profile, ownerSettings, isOwner: access.isOwner, signedIn: !!user };

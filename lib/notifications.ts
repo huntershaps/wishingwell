@@ -3,7 +3,7 @@ import { db, id, now } from "./db";
 import { getSettings } from "./auth";
 import type { Notification } from "./types";
 
-function insert(row: {
+async function insert(row: {
   userId: string;
   audience: "owner" | "buyer";
   type: string;
@@ -11,7 +11,7 @@ function insert(row: {
   body?: string | null;
   href?: string | null;
 }) {
-  db.prepare(
+  await db.prepare(
     `INSERT INTO notifications (id, user_id, audience, type, title, body, href, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
@@ -32,7 +32,7 @@ function insert(row: {
  * the extra detail is passed through; otherwise it is never written to the row
  * in the first place — a notification cannot leak what it does not contain.
  */
-export function notifyGiftActivity(opts: {
+export async function notifyGiftActivity(opts: {
   ownerId: string;
   wishlistId: string;
   wishlistTitle: string;
@@ -40,8 +40,8 @@ export function notifyGiftActivity(opts: {
   itemName: string;
   kind: "reserved" | "purchased" | "released";
 }) {
-  const settings = getSettings(opts.ownerId);
-  db.prepare(
+  const settings = await getSettings(opts.ownerId);
+  await db.prepare(
     `INSERT INTO wishlist_events (id, wishlist_id, kind, created_at) VALUES (?, ?, 'gift_activity', ?)`,
   ).run(id(), opts.wishlistId, now());
 
@@ -74,14 +74,14 @@ export function notifyGiftActivity(opts: {
   });
 }
 
-export function notifyBuyer(opts: {
+export async function notifyBuyer(opts: {
   buyerId: string;
   type: string;
   title: string;
   body?: string;
   href?: string;
 }) {
-  const settings = getSettings(opts.buyerId);
+  const settings = await getSettings(opts.buyerId);
   if (!settings.appNotifications) return;
   if (opts.type.startsWith("reservation") && !settings.notifyReservationReminders) return;
   insert({
@@ -95,8 +95,8 @@ export function notifyBuyer(opts: {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export function listNotifications(userId: string, limit = 40): Notification[] {
-  const rows = db
+export async function listNotifications(userId: string, limit = 40): Promise<Notification[]> {
+  const rows = await db
     .prepare(
       `SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`,
     )
@@ -114,15 +114,15 @@ export function listNotifications(userId: string, limit = 40): Notification[] {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export function unreadCount(userId: string): number {
-  const row = db
+export async function unreadCount(userId: string): Promise<number> {
+  const row = await db
     .prepare(`SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL`)
     .get(userId) as { n: number };
   return row.n;
 }
 
-export function markAllRead(userId: string) {
-  db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL`).run(
+export async function markAllRead(userId: string) {
+  await db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL`).run(
     now(),
     userId,
   );

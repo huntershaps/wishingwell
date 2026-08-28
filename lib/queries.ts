@@ -57,15 +57,15 @@ const WISHLIST_SELECT = `
          (SELECT COUNT(*) FROM items i WHERE i.wishlist_id = w.id AND i.archived_at IS NULL) AS itemCount
     FROM wishlists w`;
 
-export function getOwnerWishlists(userId: string): Wishlist[] {
-  const rows = db
+export async function getOwnerWishlists(userId: string): Promise<Wishlist[]> {
+  const rows = await db
     .prepare(`${WISHLIST_SELECT} WHERE w.user_id = ? ORDER BY w.position, w.created_at DESC`)
     .all(userId) as any[];
   return rows.map(mapWishlist);
 }
 
-export function getWishlistBySlug(username: string, slug: string): Wishlist | null {
-  const row = db
+export async function getWishlistBySlug(username: string, slug: string): Promise<Wishlist | null> {
+  const row = await db
     .prepare(
       `${WISHLIST_SELECT}
        JOIN profiles p ON p.user_id = w.user_id
@@ -75,13 +75,13 @@ export function getWishlistBySlug(username: string, slug: string): Wishlist | nu
   return row ? mapWishlist(row) : null;
 }
 
-export function getWishlistByShareToken(shareToken: string): Wishlist | null {
-  const row = db.prepare(`${WISHLIST_SELECT} WHERE w.share_token = ?`).get(shareToken) as any;
+export async function getWishlistByShareToken(shareToken: string): Promise<Wishlist | null> {
+  const row = await db.prepare(`${WISHLIST_SELECT} WHERE w.share_token = ?`).get(shareToken) as any;
   return row ? mapWishlist(row) : null;
 }
 
-export function getWishlistById(wishlistId: string): Wishlist | null {
-  const row = db.prepare(`${WISHLIST_SELECT} WHERE w.id = ?`).get(wishlistId) as any;
+export async function getWishlistById(wishlistId: string): Promise<Wishlist | null> {
+  const row = await db.prepare(`${WISHLIST_SELECT} WHERE w.id = ?`).get(wishlistId) as any;
   return row ? mapWishlist(row) : null;
 }
 
@@ -168,13 +168,13 @@ function resolveGiftState(
   };
 }
 
-export function getItems(
+export async function getItems(
   wishlistId: string,
   opts: { viewer: Viewer; isOwner: boolean; surpriseMode: boolean },
-): Item[] {
-  runReservationMaintenance();
+): Promise<Item[]> {
+  await runReservationMaintenance();
 
-  const rows = db
+  const rows = await db
     .prepare(
       `SELECT * FROM items WHERE wishlist_id = ? AND archived_at IS NULL
         ORDER BY position, created_at DESC`,
@@ -184,10 +184,10 @@ export function getItems(
 
   const ids = rows.map((r) => r.id);
   const marks = ids.map(() => "?").join(",");
-  const media = db
+  const media = await db
     .prepare(`SELECT * FROM item_media WHERE item_id IN (${marks}) ORDER BY position`)
     .all(...ids) as any[];
-  const actives = db
+  const actives = await db
     .prepare(
       `SELECT * FROM reservations
         WHERE item_id IN (${marks}) AND status IN ('reserved','purchased')`,
@@ -230,20 +230,20 @@ export function getItems(
   });
 }
 
-export function getItemRaw(itemId: string) {
-  return db.prepare(`SELECT * FROM items WHERE id = ?`).get(itemId) as any;
+export async function getItemRaw(itemId: string) {
+  return await db.prepare(`SELECT * FROM items WHERE id = ?`).get(itemId) as any;
 }
 
 // ---------------------------------------------------------------- profiles
 
-export function getPublicProfile(username: string): Profile | null {
-  const row = db.prepare(`SELECT * FROM profiles WHERE username = ?`).get(username) as any;
+export async function getPublicProfile(username: string): Promise<Profile | null> {
+  const row = await db.prepare(`SELECT * FROM profiles WHERE username = ?`).get(username) as any;
   return row ? mapProfile(row) : null;
 }
 
-export function getVisibleWishlists(ownerId: string, viewer: Viewer): Wishlist[] {
+export async function getVisibleWishlists(ownerId: string, viewer: Viewer): Promise<Wishlist[]> {
   const isOwner = viewer.userId === ownerId;
-  const rows = db
+  const rows = await db
     .prepare(
       `${WISHLIST_SELECT}
         WHERE w.user_id = ? AND w.archived_at IS NULL
@@ -264,8 +264,8 @@ export function nextEvent(lists: Wishlist[]): Wishlist | undefined {
 
 // --------------------------------------------------------------- analytics
 
-export function recordEvent(wishlistId: string, kind: "view" | "share") {
-  db.prepare(
+export async function recordEvent(wishlistId: string, kind: "view" | "share") {
+  await db.prepare(
     `INSERT INTO wishlist_events (id, wishlist_id, kind, created_at) VALUES (?, ?, ?, ?)`,
   ).run(id(), wishlistId, kind, now());
 }
@@ -282,8 +282,8 @@ export type ListStats = {
  * Owner-side numbers. Gift activity is a count and nothing more: enough to know
  * something is happening, not enough to work out what.
  */
-export function getListStats(wishlistId: string): ListStats {
-  const counts = db
+export async function getListStats(wishlistId: string): Promise<ListStats> {
+  const counts = await db
     .prepare(
       `SELECT
          (SELECT COUNT(*) FROM wishlist_events e WHERE e.wishlist_id = ? AND e.kind = 'view') AS views,
@@ -305,8 +305,8 @@ export function getListStats(wishlistId: string): ListStats {
   };
 }
 
-export function getOwnerOverview(userId: string) {
-  const row = db
+export async function getOwnerOverview(userId: string) {
+  const row = await db
     .prepare(
       `SELECT
          (SELECT COUNT(*) FROM wishlists w WHERE w.user_id = ? AND w.archived_at IS NULL) AS lists,

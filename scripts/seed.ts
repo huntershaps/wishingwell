@@ -9,7 +9,19 @@
 import { randomBytes, scryptSync } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { db, id, now, token } from "../lib/db";
+import type { InValue } from "@libsql/client";
+import { client, db, id, migrate, now, token } from "../lib/db";
+
+/**
+ * Every statement the seed produces, collected and sent as one batch. The demo
+ * is a few hundred inserts, and over a network that is the difference between
+ * one round trip and four hundred of them. It is also atomic: a seed that fails
+ * halfway leaves nothing behind.
+ */
+const statements: { sql: string; args: InValue[] }[] = [];
+const q = (sql: string, ...args: InValue[]) => {
+  statements.push({ sql, args });
+};
 
 const DAY = 86_400_000;
 const T = now();
@@ -23,14 +35,31 @@ function hash(password: string) {
   return `scrypt:${salt.toString("hex")}:${scryptSync(password, salt, 64).toString("hex")}`;
 }
 
+/**
+ * Clears the demo, and only the demo.
+ *
+ * Every seeded person has a @wishwell.app address, so that is what identifies
+ * demo data. Real accounts share this database once the app is deployed, and a
+ * seed that wiped whole tables would take a real birthday list with it. The
+ * deletes are scoped and ordered children-first rather than leaning on cascade,
+ * because foreign keys are not guaranteed to be enforced everywhere this runs.
+ */
 function wipe() {
-  const tables = [
-    "wishlist_events", "notifications", "reservations", "item_media", "items",
-    "wishlists", "sessions", "guests", "settings", "profiles", "users",
-  ];
-  db.pragma("foreign_keys = OFF");
-  for (const t of tables) db.prepare(`DELETE FROM ${t}`).run();
-  db.pragma("foreign_keys = ON");
+  const demo = `SELECT id FROM users WHERE email LIKE '%@wishwell.app'`;
+  const demoLists = `SELECT id FROM wishlists WHERE user_id IN (${demo})`;
+  const demoItems = `SELECT id FROM items WHERE wishlist_id IN (${demoLists})`;
+
+  q(`DELETE FROM wishlist_events WHERE wishlist_id IN (${demoLists})`);
+  q(`DELETE FROM notifications WHERE user_id IN (${demo})`);
+  q(`DELETE FROM reservations WHERE item_id IN (${demoItems}) OR buyer_user_id IN (${demo})`);
+  q(`DELETE FROM item_media WHERE item_id IN (${demoItems})`);
+  q(`DELETE FROM items WHERE wishlist_id IN (${demoLists})`);
+  q(`DELETE FROM wishlists WHERE user_id IN (${demo})`);
+  q(`DELETE FROM sessions WHERE user_id IN (${demo})`);
+  q(`DELETE FROM guests WHERE token = 'demo-guest-ro'`);
+  q(`DELETE FROM settings WHERE user_id IN (${demo})`);
+  q(`DELETE FROM profiles WHERE user_id IN (${demo})`);
+  q(`DELETE FROM users WHERE email LIKE '%@wishwell.app'`);
 }
 
 // ------------------------------------------------------------------ inserts
@@ -54,26 +83,18 @@ const users: Record<string, string> = {};
 function addUser(spec: UserSpec) {
   const userId = id();
   users[spec.key] = userId;
-  db.prepare(
-    `INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`,
-  ).run(userId, spec.email, hash("wishwell"), T - 220 * DAY);
-  db.prepare(
-    `INSERT INTO profiles (user_id, username, display_name, bio, accent, location, links, visibility, discoverable, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'public', 1, ?)`,
-  ).run(
-    userId,
+  q(`INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`, userId, spec.email, hash("wishwell"), T - 220 * DAY);
+  q(`INSERT INTO profiles (user_id, username, display_name, bio, accent, location, links, visibility, discoverable, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'public', 1, ?)`, userId,
     spec.username,
     spec.name,
     spec.bio,
     spec.accent,
     spec.location ?? null,
     JSON.stringify(spec.links ?? []),
-    T - 220 * DAY,
-  );
-  db.prepare(
-    `INSERT INTO settings (user_id, surprise_mode, allow_guest_reservations, reservations_expire, reservation_days)
-     VALUES (?, ?, ?, 1, ?)`,
-  ).run(userId, spec.surprise === false ? 0 : 1, spec.guests === false ? 0 : 1, spec.days ?? 7);
+    T - 220 * DAY,);
+  q(`INSERT INTO settings (user_id, surprise_mode, allow_guest_reservations, reservations_expire, reservation_days)
+     VALUES (?, ?, ?, 1, ?)`, userId, spec.surprise === false ? 0 : 1, spec.guests === false ? 0 : 1, spec.days ?? 7);
   return userId;
 }
 
@@ -99,13 +120,10 @@ function addList(spec: ListSpec) {
   const listId = id();
   lists[spec.key] = listId;
   const created = T - (spec.createdDaysAgo ?? 60) * DAY;
-  db.prepare(
-    `INSERT INTO wishlists
+  q(`INSERT INTO wishlists
        (id, user_id, slug, title, description, icon, cover_url, accent, occasion, event_date,
         visibility, share_token, position, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    listId,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, listId,
     users[spec.owner],
     spec.slug,
     spec.title,
@@ -119,8 +137,7 @@ function addList(spec: ListSpec) {
     token(9),
     spec.position,
     created,
-    created,
-  );
+    created,);
   return listId;
 }
 
@@ -152,13 +169,10 @@ function addItem(spec: ItemSpec, position: number) {
   const itemId = id();
   items[spec.key] = itemId;
   const created = T - (spec.addedDaysAgo ?? 30) * DAY;
-  db.prepare(
-    `INSERT INTO items
+  q(`INSERT INTO items
       (id, wishlist_id, name, url, store, price_cents, currency, description, why_want, priority,
        category, tags, notes, size, color, variant, feature, position, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    itemId,
+     VALUES (?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, itemId,
     lists[spec.list],
     spec.name,
     spec.url ?? null,
@@ -176,32 +190,24 @@ function addItem(spec: ItemSpec, position: number) {
     spec.feature ? 1 : 0,
     position,
     created,
-    created,
-  );
+    created,);
 
   let mediaPos = 0;
   if (spec.video) {
-    db.prepare(
-      `INSERT INTO item_media (id, item_id, kind, url, poster_url, alt, caption, width, height, position, created_at)
-       VALUES (?, ?, 'video', ?, ?, ?, ?, 720, 1280, ?, ?)`,
-    ).run(
-      id(),
+    q(`INSERT INTO item_media (id, item_id, kind, url, poster_url, alt, caption, width, height, position, created_at)
+       VALUES (?, ?, 'video', ?, ?, ?, ?, 720, 1280, ?, ?)`, id(),
       itemId,
       `/media/${spec.video.key}.mp4`,
       `/media/${spec.video.key}.jpg`,
       `Video note about ${spec.name}`,
       spec.video.caption,
       mediaPos++,
-      created,
-    );
+      created,);
   }
   for (const photo of spec.photos) {
     const credit = credits[photo];
-    db.prepare(
-      `INSERT INTO item_media (id, item_id, kind, url, alt, caption, width, height, position, created_at)
-       VALUES (?, ?, 'image', ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id(),
+    q(`INSERT INTO item_media (id, item_id, kind, url, alt, caption, width, height, position, created_at)
+       VALUES (?, ?, 'image', ?, ?, ?, ?, ?, ?, ?)`, id(),
       itemId,
       `/media/${photo}.jpg`,
       credit?.alt ? `${spec.name}: ${credit.alt}` : spec.name,
@@ -209,8 +215,7 @@ function addItem(spec: ItemSpec, position: number) {
       1600,
       Math.round(1600 / (credit?.ratio ?? 1.5)),
       mediaPos++,
-      created,
-    );
+      created,);
   }
   return itemId;
 }
@@ -226,12 +231,9 @@ function reserve(opts: {
   note?: string;
 }) {
   const reservedAt = T - opts.daysAgo * DAY;
-  db.prepare(
-    `INSERT INTO reservations
+  q(`INSERT INTO reservations
       (id, item_id, buyer_user_id, guest_token, guest_name, status, note, reserved_at, expires_at, purchased_at, released_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id(),
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id(),
     items[opts.item],
     opts.buyer ? users[opts.buyer] : null,
     opts.guest ?? null,
@@ -241,8 +243,7 @@ function reserve(opts: {
     reservedAt,
     opts.expiresInDays != null ? T + opts.expiresInDays * DAY : null,
     opts.status === "purchased" ? reservedAt + DAY : null,
-    opts.status === "released" ? reservedAt + 2 * DAY : null,
-  );
+    opts.status === "released" ? reservedAt + 2 * DAY : null,);
 }
 
 function notify(opts: {
@@ -256,11 +257,8 @@ function notify(opts: {
   read?: boolean;
 }) {
   const created = T - Math.round(opts.daysAgo * DAY);
-  db.prepare(
-    `INSERT INTO notifications (id, user_id, audience, type, title, body, href, read_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id(),
+  q(`INSERT INTO notifications (id, user_id, audience, type, title, body, href, read_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, id(),
     users[opts.user],
     opts.audience,
     opts.type,
@@ -268,8 +266,7 @@ function notify(opts: {
     opts.body ?? null,
     opts.href ?? null,
     opts.read ? created + 3600_000 : null,
-    created,
-  );
+    created,);
 }
 
 function events(list: string, views: number, shares: number, overDays = 30) {
@@ -1144,12 +1141,10 @@ addItem(
 // --------------------------------------------------------- gift activity --
 
 const guestToken = "demo-guest-ro";
-db.prepare(`INSERT INTO guests (token, name, email, created_at) VALUES (?, ?, ?, ?)`).run(
-  guestToken,
+q(`INSERT INTO guests (token, name, email, created_at) VALUES (?, ?, ?, ?)`, guestToken,
   "Ro",
   null,
-  T - 12 * DAY,
-);
+  T - 12 * DAY,);
 
 // On Hunter's lists — he must never learn which of these are which.
 reserve({ item: "sigma", buyer: "theo", status: "reserved", daysAgo: 3, expiresInDays: 4 });
@@ -1240,20 +1235,28 @@ events("wedding", 119, 12, 25);
 events("justbecause", 11, 1, 15);
 
 // A list is only as fresh as the last thing added to it.
-db.prepare(
-  `UPDATE wishlists SET updated_at = COALESCE(
-     (SELECT MAX(created_at) FROM items WHERE wishlist_id = wishlists.id), created_at)`,
-).run();
+q(`UPDATE wishlists SET updated_at = COALESCE(
+     (SELECT MAX(created_at) FROM items WHERE wishlist_id = wishlists.id), created_at)`);
 
-const counts = db
-  .prepare(
-    `SELECT (SELECT COUNT(*) FROM users) AS users,
-            (SELECT COUNT(*) FROM wishlists) AS lists,
-            (SELECT COUNT(*) FROM items) AS items,
-            (SELECT COUNT(*) FROM item_media) AS media,
-            (SELECT COUNT(*) FROM reservations) AS reservations`,
-  )
-  .get();
+async function main() {
+  await migrate();
+  await client.batch(statements, "write");
 
-process.stdout.write(`Seeded ${JSON.stringify(counts)}\n`);
-process.stdout.write(`Sign in with hunter@wishwell.app / wishwell\n`);
+  const counts = await db
+    .prepare(
+      `SELECT (SELECT COUNT(*) FROM users) AS users,
+              (SELECT COUNT(*) FROM wishlists) AS lists,
+              (SELECT COUNT(*) FROM items) AS items,
+              (SELECT COUNT(*) FROM item_media) AS media,
+              (SELECT COUNT(*) FROM reservations) AS reservations`,
+    )
+    .get();
+
+  process.stdout.write(`Seeded ${JSON.stringify(counts)}\n`);
+  process.stdout.write(`Sign in with hunter@wishwell.app / wishwell\n`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

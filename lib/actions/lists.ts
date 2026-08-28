@@ -16,14 +16,14 @@ const MAX_IMAGE = 8 * 1024 * 1024;
 const MAX_VIDEO = 40 * 1024 * 1024;
 
 async function assertOwnsList(listId: string, userId: string) {
-  const row = db.prepare(`SELECT user_id FROM wishlists WHERE id = ?`).get(listId) as
+  const row = await db.prepare(`SELECT user_id FROM wishlists WHERE id = ?`).get(listId) as
     | { user_id: string }
     | undefined;
   if (!row || row.user_id !== userId) throw new Error("FORBIDDEN");
 }
 
 async function assertOwnsItem(itemId: string, userId: string) {
-  const row = db
+  const row = await db
     .prepare(
       `SELECT w.user_id AS userId, w.id AS listId
          FROM items i JOIN wishlists w ON w.id = i.wishlist_id WHERE i.id = ?`,
@@ -33,7 +33,15 @@ async function assertOwnsItem(itemId: string, userId: string) {
   return row.listId;
 }
 
-/** Stores an uploaded file under /public/uploads and returns its public path. */
+/**
+ * Stores an uploaded photograph or video note.
+ *
+ * On Vercel there is no disk to write to, so files go to Blob storage and the
+ * item keeps the absolute URL it comes back with. Everywhere else — local
+ * development, or the container build — they are written next to the database
+ * and served by app/uploads/[...file]/route.ts. Which one is in play is decided
+ * by whether a Blob token exists, so neither environment needs to be told.
+ */
 async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "video" } | null> {
   if (!file || file.size === 0) return null;
   const isVideo = file.type.startsWith("video/");
@@ -54,8 +62,18 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
       "video/quicktime": "mp4",
     })[file.type] ?? (isVideo ? "mp4" : "jpg");
 
-  await fs.mkdir(/*turbopackIgnore: true*/ UPLOAD_DIR, { recursive: true });
   const name = `${token(12)}.${ext}`;
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { put } = await import("@vercel/blob");
+    const blob = await put(`uploads/${name}`, file, {
+      access: "public",
+      contentType: file.type,
+    });
+    return { url: blob.url, kind: isVideo ? "video" : "image" };
+  }
+
+  await fs.mkdir(/*turbopackIgnore: true*/ UPLOAD_DIR, { recursive: true });
   await fs.writeFile(
     path.join(/*turbopackIgnore: true*/ UPLOAD_DIR, name),
     Buffer.from(await file.arrayBuffer()),
@@ -63,12 +81,12 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
   return { url: `/uploads/${name}`, kind: isVideo ? "video" : "image" };
 }
 
-function uniqueSlug(userId: string, desired: string, ignoreId?: string) {
+async function uniqueSlug(userId: string, desired: string, ignoreId?: string) {
   const base = slugify(desired) || "list";
   let candidate = base;
   let n = 1;
   for (;;) {
-    const clash = db
+    const clash = await db
       .prepare(`SELECT id FROM wishlists WHERE user_id = ? AND slug = ?`)
       .get(userId, candidate) as { id: string } | undefined;
     if (!clash || clash.id === ignoreId) return candidate;
@@ -87,7 +105,7 @@ export async function createListAction(_prev: ListFormState, form: FormData): Pr
   const ts = now();
   const cover = await storeUpload(form.get("cover") as File).catch(() => null);
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO wishlists
       (id, user_id, slug, title, description, icon, cover_url, accent, occasion, event_date,
        visibility, share_token, position, created_at, updated_at)
@@ -95,7 +113,7 @@ export async function createListAction(_prev: ListFormState, form: FormData): Pr
   ).run(
     listId,
     user.id,
-    uniqueSlug(user.id, String(form.get("slug") ?? "") || title),
+    await uniqueSlug(user.id, String(form.get("slug") ?? "") || title),
     title,
     String(form.get("description") ?? "").trim() || null,
     String(form.get("icon") ?? "").trim() || null,
@@ -131,19 +149,19 @@ export async function updateListAction(_prev: ListFormState, form: FormData): Pr
   }
   if (form.get("removeCover") === "1") coverUrl = null;
 
-  const current = db.prepare(`SELECT slug, cover_url FROM wishlists WHERE id = ?`).get(listId) as {
+  const current = await db.prepare(`SELECT slug, cover_url FROM wishlists WHERE id = ?`).get(listId) as {
     slug: string;
     cover_url: string | null;
   };
 
-  db.prepare(
+  await db.prepare(
     `UPDATE wishlists
         SET title = ?, slug = ?, description = ?, icon = ?, cover_url = ?, accent = ?,
             occasion = ?, event_date = ?, visibility = ?, updated_at = ?
       WHERE id = ?`,
   ).run(
     title,
-    uniqueSlug(user.id, String(form.get("slug") ?? "") || title, listId),
+    await uniqueSlug(user.id, String(form.get("slug") ?? "") || title, listId),
     String(form.get("description") ?? "").trim() || null,
     String(form.get("icon") ?? "").trim() || null,
     coverUrl === undefined ? current.cover_url : coverUrl,
@@ -165,7 +183,7 @@ export async function deleteListAction(form: FormData) {
   const user = await requireUser();
   const listId = String(form.get("listId") ?? "");
   await assertOwnsList(listId, user.id);
-  db.prepare(`DELETE FROM wishlists WHERE id = ?`).run(listId);
+  await db.prepare(`DELETE FROM wishlists WHERE id = ?`).run(listId);
   revalidatePath("/dashboard");
   redirect("/dashboard");
 }
@@ -174,7 +192,7 @@ export async function regenerateShareLinkAction(form: FormData) {
   const user = await requireUser();
   const listId = String(form.get("listId") ?? "");
   await assertOwnsList(listId, user.id);
-  db.prepare(`UPDATE wishlists SET share_token = ?, updated_at = ? WHERE id = ?`).run(
+  await db.prepare(`UPDATE wishlists SET share_token = ?, updated_at = ? WHERE id = ?`).run(
     token(9),
     now(),
     listId,
@@ -216,7 +234,7 @@ async function saveMedia(itemId: string, form: FormData, startAt: number) {
   for (const file of files) {
     const stored = await storeUpload(file);
     if (!stored) continue;
-    db.prepare(
+    await db.prepare(
       `INSERT INTO item_media (id, item_id, kind, url, alt, position, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(id(), itemId, stored.kind, stored.url, null, position++, now());
@@ -233,13 +251,13 @@ export async function createItemAction(_prev: ListFormState, form: FormData): Pr
 
   const itemId = id();
   const ts = now();
-  const position = (db
+  const position = (await db
     .prepare(`SELECT COALESCE(MAX(position), -1) + 1 AS next FROM items WHERE wishlist_id = ?`)
     .get(listId) as { next: number }).next;
 
   try {
-    tx(() => {
-      db.prepare(
+    await tx(async (t) => {
+      await t.prepare(
         `INSERT INTO items
           (id, wishlist_id, name, url, store, price_cents, currency, description, why_want, priority,
            category, tags, notes, size, color, variant, feature, position, created_at, updated_at)
@@ -256,7 +274,7 @@ export async function createItemAction(_prev: ListFormState, form: FormData): Pr
     return { error: (err as Error).message };
   }
 
-  db.prepare(`UPDATE wishlists SET updated_at = ? WHERE id = ?`).run(ts, listId);
+  await db.prepare(`UPDATE wishlists SET updated_at = ? WHERE id = ?`).run(ts, listId);
   revalidatePath(`/dashboard/lists/${listId}`);
   revalidatePath("/dashboard");
   return null;
@@ -270,7 +288,7 @@ export async function updateItemAction(_prev: ListFormState, form: FormData): Pr
   const fields = itemFields(form);
   if (fields.name.length < 2) return { error: "What is it called?", field: "name" };
 
-  db.prepare(
+  await db.prepare(
     `UPDATE items SET name = ?, url = ?, store = ?, price_cents = ?, currency = ?, description = ?,
             why_want = ?, priority = ?, category = ?, tags = ?, notes = ?, size = ?, color = ?,
             variant = ?, feature = ?, updated_at = ?
@@ -281,7 +299,7 @@ export async function updateItemAction(_prev: ListFormState, form: FormData): Pr
     fields.size, fields.color, fields.variant, fields.feature, now(), itemId,
   );
 
-  const nextPosition = (db
+  const nextPosition = (await db
     .prepare(`SELECT COALESCE(MAX(position), -1) + 1 AS next FROM item_media WHERE item_id = ?`)
     .get(itemId) as { next: number }).next;
   try {
@@ -298,7 +316,7 @@ export async function deleteItemAction(form: FormData) {
   const user = await requireUser();
   const itemId = String(form.get("itemId") ?? "");
   const listId = await assertOwnsItem(itemId, user.id);
-  db.prepare(`UPDATE items SET archived_at = ? WHERE id = ?`).run(now(), itemId);
+  await db.prepare(`UPDATE items SET archived_at = ? WHERE id = ?`).run(now(), itemId);
   revalidatePath(`/dashboard/lists/${listId}`);
   revalidatePath("/dashboard");
 }
@@ -306,11 +324,11 @@ export async function deleteItemAction(form: FormData) {
 export async function deleteMediaAction(form: FormData) {
   const user = await requireUser();
   const mediaId = String(form.get("mediaId") ?? "");
-  const row = db.prepare(`SELECT item_id FROM item_media WHERE id = ?`).get(mediaId) as
+  const row = await db.prepare(`SELECT item_id FROM item_media WHERE id = ?`).get(mediaId) as
     | { item_id: string }
     | undefined;
   if (!row) return;
   const listId = await assertOwnsItem(row.item_id, user.id);
-  db.prepare(`DELETE FROM item_media WHERE id = ?`).run(mediaId);
+  await db.prepare(`DELETE FROM item_media WHERE id = ?`).run(mediaId);
   revalidatePath(`/dashboard/lists/${listId}`);
 }

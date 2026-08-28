@@ -28,11 +28,11 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
   if (!emailPattern.test(email)) return { error: "Check that email address.", field: "email" };
   if (password.length < 8) return { error: "Use at least 8 characters.", field: "password" };
 
-  const issue = usernameIssue(username);
+  const issue = await usernameIssue(username);
   if (issue) return { error: issue, field: "username" };
-  if (findUserByEmail(email)) return { error: "That email already has an account.", field: "email" };
+  if (await findUserByEmail(email)) return { error: "That email already has an account.", field: "email" };
 
-  const userId = createUser({
+  const userId = await createUser({
     email,
     passwordHash: await hashPassword(password),
     username,
@@ -41,7 +41,7 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
 
   // A new account with nothing in it is a dead end, so it starts with one list.
   const ts = now();
-  db.prepare(
+  await db.prepare(
     `INSERT INTO wishlists (id, user_id, slug, title, description, icon, accent, visibility, share_token, position, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, 'madder', 'link', ?, 0, ?, ?)`,
   ).run(
@@ -65,7 +65,7 @@ export async function signInAction(_prev: FormState, form: FormData): Promise<Fo
   const password = String(form.get("password") ?? "");
   const next = String(form.get("next") ?? "/dashboard");
 
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   const ok = user ? await verifyPassword(password, user.password_hash) : false;
   if (!user || !ok) return { error: "That email and password do not match.", field: "email" };
 
@@ -84,6 +84,6 @@ export async function suggestUsername(name: string) {
   const base = slugify(name).replace(/-/g, "") || "you";
   let candidate = base.slice(0, 20);
   let n = 1;
-  while (usernameIssue(candidate)) candidate = `${base.slice(0, 18)}${++n}`;
+  while (await usernameIssue(candidate)) candidate = `${base.slice(0, 18)}${++n}`;
   return candidate;
 }

@@ -18,12 +18,17 @@ const VISIBILITY_LABEL = {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const lists = getOwnerWishlists(user.id).filter((l) => !l.archivedAt);
-  const overview = getOwnerOverview(user.id);
+  const lists = (await getOwnerWishlists(user.id)).filter((l) => !l.archivedAt);
+  const overview = await getOwnerOverview(user.id);
   const username = user.profile.username;
 
   const upcoming = nextEvent(lists);
   const rest = lists.filter((l) => l.id !== upcoming?.id);
+  // Fetched together rather than one per row: over a network each of these is a
+  // round trip, and the list renders as one thing anyway.
+  const restStats = new Map(
+    await Promise.all(rest.map(async (l) => [l.id, await getListStats(l.id)] as const)),
+  );
 
   return (
     <>
@@ -168,7 +173,7 @@ export default async function DashboardPage() {
 
           <ul className="mt-4 border-t border-rule">
             {rest.map((list) => {
-              const stats = getListStats(list.id);
+              const stats = restStats.get(list.id)!;
               return (
                 <li key={list.id} className="border-b border-rule">
                   <div className="flex items-center gap-4 py-4 sm:gap-6">

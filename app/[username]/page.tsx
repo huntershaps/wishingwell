@@ -15,7 +15,7 @@ type Params = { params: Promise<{ username: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { username } = await params;
-  const profile = getPublicProfile(username);
+  const profile = await getPublicProfile(username);
   if (!profile) return { title: "Profile not found" };
   return {
     title: profile.displayName,
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ProfilePage({ params }: Params) {
   const { username } = await params;
-  const profile = getPublicProfile(username);
+  const profile = await getPublicProfile(username);
   if (!profile) notFound();
 
   const user = await getCurrentUser();
@@ -52,7 +52,7 @@ export default async function ProfilePage({ params }: Params) {
     );
   }
 
-  const lists = getVisibleWishlists(profile.userId, {
+  const lists = await getVisibleWishlists(profile.userId, {
     userId: user?.id ?? null,
     guestToken: null,
   });

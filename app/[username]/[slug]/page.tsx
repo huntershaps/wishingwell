@@ -25,8 +25,8 @@ type Params = { params: Promise<{ username: string; slug: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { username, slug } = await params;
-  const list = getWishlistBySlug(username, slug);
-  const profile = getPublicProfile(username);
+  const list = await getWishlistBySlug(username, slug);
+  const profile = await getPublicProfile(username);
   if (!list || !profile) return { title: "List not found" };
   const title = `${list.title} · ${profile.displayName}`;
   return {
@@ -76,8 +76,8 @@ function Locked({
 
 export default async function WishlistPage({ params }: Params) {
   const { username, slug } = await params;
-  const profile = getPublicProfile(username);
-  const list = profile ? getWishlistBySlug(username, slug) : null;
+  const profile = await getPublicProfile(username);
+  const list = profile ? await getWishlistBySlug(username, slug) : null;
   if (!profile || !list) notFound();
 
   const user = await getCurrentUser();
@@ -88,14 +88,14 @@ export default async function WishlistPage({ params }: Params) {
     return <Locked reason={access.reason} ownerName={profile.displayName} username={username} />;
   }
 
-  const ownerSettings = getSettings(list.userId);
-  const items = getItems(list.id, {
+  const ownerSettings = await getSettings(list.userId);
+  const items = await getItems(list.id, {
     viewer,
     isOwner: access.isOwner,
     surpriseMode: ownerSettings.surpriseMode,
   });
 
-  if (!access.isOwner) recordEvent(list.id, "view");
+  if (!access.isOwner) await recordEvent(list.id, "view");
 
   const plan = planLayout(items);
   const claimedCount = items.filter(

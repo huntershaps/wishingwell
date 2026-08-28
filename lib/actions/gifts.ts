@@ -16,8 +16,8 @@ export type GiftState =
   | { status: "reserved"; reservationId: string; expiresAt: number | null }
   | { status: "error"; message: string };
 
-function listPathForItem(itemId: string): string | null {
-  const row = db
+async function listPathForItem(itemId: string): Promise<string | null> {
+  const row = await db
     .prepare(
       `SELECT p.username, w.slug
          FROM items i
@@ -41,7 +41,7 @@ export async function reserveAction(_prev: GiftState, form: FormData): Promise<G
   const note = String(form.get("note") ?? "").trim() || null;
   const guestName = String(form.get("guestName") ?? "").trim() || null;
 
-  const item = getItemRaw(itemId);
+  const item = await getItemRaw(itemId);
   if (!item) return { status: "error", message: MESSAGES.missing };
 
   const user = await getCurrentUser();
@@ -52,10 +52,10 @@ export async function reserveAction(_prev: GiftState, form: FormData): Promise<G
     viewer = { userId: null, guestToken };
   }
 
-  const result = reserveItem({ itemId, viewer, note, guestName });
+  const result = await reserveItem({ itemId, viewer, note, guestName });
   if (!result.ok) return { status: "error", message: MESSAGES[result.error] ?? "Something went wrong." };
 
-  const path = listPathForItem(itemId);
+  const path = await listPathForItem(itemId);
   if (path) revalidatePath(path);
   revalidatePath("/gifts");
   return { status: "reserved", reservationId: result.reservationId, expiresAt: result.expiresAt };
@@ -70,7 +70,7 @@ async function transition(
   const ok = fn(reservationId, viewer);
   const itemId = String(form.get("itemId") ?? "");
   if (itemId) {
-    const path = listPathForItem(itemId);
+    const path = await listPathForItem(itemId);
     if (path) revalidatePath(path);
   }
   revalidatePath("/gifts");

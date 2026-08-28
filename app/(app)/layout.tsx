@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         avatarUrl: user.profile.avatarUrl,
         accent: user.profile.accent,
       }}
-      unread={unreadCount(user.id)}
+      unread={await unreadCount(user.id)}
     >
       {children}
     </AppShell>

@@ -3,7 +3,7 @@
 A social wishlist and gifting app. People write down what they want and *why*, share
 one link, and everyone buying can coordinate without spoiling the surprise.
 
-Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, and SQLite.
+Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, and SQLite (libSQL).
 
 ```bash
 npm install
@@ -134,11 +134,16 @@ scripts/                        media pipeline, seed, verification
 
 ## Notes and limits
 
-- Data lives in a local SQLite file (`.data/wishwell.db`) via `better-sqlite3`. All
-  access goes through `lib/queries.ts` and `lib/actions/*`, so moving to Postgres or
-  Supabase means replacing that layer, not the app.
-- Uploads are written to `public/uploads`. Fine locally; a deployment would want object
-  storage.
+- Data lives in SQLite, reached through the libSQL client in `lib/db`: a plain file at
+  `.data/wishwell.db` during development, and Turso when `TURSO_DATABASE_URL` is set.
+  Same driver, same SQL, so there is nothing to switch between. All access still goes
+  through `lib/queries.ts` and `lib/actions/*`.
+- Uploads go to `public/uploads` locally and to Vercel Blob when
+  `BLOB_READ_WRITE_TOKEN` exists. Files written to disk are served by
+  `app/uploads/[...file]/route.ts`.
+- `npm run seed` restores the demo. It only deletes accounts with a `@wishwell.app`
+  address, so it is safe to run against the deployed database: real accounts survive.
+- See `DEPLOY.md` for deploying.
 - Email notifications are modelled and toggleable but not wired to a provider — the
   in-app notification centre is real.
 - OAuth is not configured; the schema carries `oauth_provider`/`oauth_subject` for it.

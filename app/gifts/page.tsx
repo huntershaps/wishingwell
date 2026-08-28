@@ -127,7 +127,7 @@ function GiftRow({ reservation }: { reservation: BuyerReservation }) {
 
 export default async function GiftsPage() {
   const viewer = await getViewer();
-  const reservations = listBuyerReservations(viewer);
+  const reservations = await listBuyerReservations(viewer);
   const isGuest = !viewer.userId;
 
   const planning = reservations.filter((r) => r.status === "reserved");

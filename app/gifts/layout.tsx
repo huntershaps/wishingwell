@@ -21,7 +21,7 @@ export default async function GiftsLayout({ children }: { children: React.ReactN
             }
           : null
       }
-      unread={user ? unreadCount(user.id) : 0}
+      unread={user ? await unreadCount(user.id) : 0}
     >
       {children}
     </AppShell>

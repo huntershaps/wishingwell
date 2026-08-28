@@ -45,8 +45,8 @@ function Row({ notification }: { notification: Notification }) {
 
 export default async function NotificationsPage() {
   const user = await requireUser();
-  runReservationMaintenance();
-  const notifications = listNotifications(user.id);
+  await runReservationMaintenance();
+  const notifications = await listNotifications(user.id);
   const owner = notifications.filter((n) => n.audience === "owner");
   const buyer = notifications.filter((n) => n.audience === "buyer");
   const unread = notifications.filter((n) => !n.readAt).length;

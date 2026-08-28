@@ -35,7 +35,7 @@ export async function verifyPassword(password: string, stored: string | null): P
 export async function createSession(userId: string) {
   const sid = token(24);
   const created = now();
-  db.prepare(
+  await db.prepare(
     `INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)`,
   ).run(sid, userId, created, created + SESSION_TTL);
   const jar = await cookies();
@@ -51,7 +51,7 @@ export async function createSession(userId: string) {
 export async function destroySession() {
   const jar = await cookies();
   const sid = jar.get(SESSION_COOKIE)?.value;
-  if (sid) db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sid);
+  if (sid) await db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sid);
   jar.delete(SESSION_COOKIE);
 }
 
@@ -66,7 +66,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const jar = await cookies();
   const sid = jar.get(SESSION_COOKIE)?.value;
   if (!sid) return null;
-  const row = db
+  const row = await db
     .prepare(
       `SELECT u.id, u.email, s.expires_at AS expiresAt
          FROM sessions s JOIN users u ON u.id = s.user_id
@@ -75,11 +75,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     .get(sid) as { id: string; email: string; expiresAt: number } | undefined;
   if (!row) return null;
   if (row.expiresAt < now()) {
-    db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sid);
+    await db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sid);
     return null;
   }
-  const profile = getProfile(row.id);
-  const settings = getSettings(row.id);
+  const profile = await getProfile(row.id);
+  const settings = await getSettings(row.id);
   if (!profile) return null;
   return { id: row.id, email: row.email, profile, settings };
 }
@@ -102,12 +102,12 @@ export async function getGuestToken(): Promise<string | null> {
 export async function ensureGuest(name?: string): Promise<string> {
   const jar = await cookies();
   const existing = jar.get(GUEST_COOKIE)?.value;
-  if (existing && db.prepare(`SELECT 1 FROM guests WHERE token = ?`).get(existing)) {
-    if (name) db.prepare(`UPDATE guests SET name = ? WHERE token = ?`).run(name, existing);
+  if (existing && await db.prepare(`SELECT 1 FROM guests WHERE token = ?`).get(existing)) {
+    if (name) await db.prepare(`UPDATE guests SET name = ? WHERE token = ?`).run(name, existing);
     return existing;
   }
   const t = token(18);
-  db.prepare(`INSERT INTO guests (token, name, created_at) VALUES (?, ?, ?)`).run(
+  await db.prepare(`INSERT INTO guests (token, name, created_at) VALUES (?, ?, ?)`).run(
     t,
     name ?? null,
     now(),
@@ -130,13 +130,13 @@ export async function getViewer(): Promise<Viewer> {
 // ---------------------------------------------------------------- profiles
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export function getProfile(userId: string): Profile | null {
-  const row = db.prepare(`SELECT * FROM profiles WHERE user_id = ?`).get(userId) as any;
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const row = await db.prepare(`SELECT * FROM profiles WHERE user_id = ?`).get(userId) as any;
   return row ? mapProfile(row) : null;
 }
 
-export function getProfileByUsername(username: string): Profile | null {
-  const row = db.prepare(`SELECT * FROM profiles WHERE username = ?`).get(username) as any;
+export async function getProfileByUsername(username: string): Promise<Profile | null> {
+  const row = await db.prepare(`SELECT * FROM profiles WHERE username = ?`).get(username) as any;
   return row ? mapProfile(row) : null;
 }
 
@@ -155,11 +155,11 @@ export function mapProfile(row: any): Profile {
   };
 }
 
-export function getSettings(userId: string): Settings {
-  let row = db.prepare(`SELECT * FROM settings WHERE user_id = ?`).get(userId) as any;
+export async function getSettings(userId: string): Promise<Settings> {
+  let row = await db.prepare(`SELECT * FROM settings WHERE user_id = ?`).get(userId) as any;
   if (!row) {
-    db.prepare(`INSERT INTO settings (user_id) VALUES (?)`).run(userId);
-    row = db.prepare(`SELECT * FROM settings WHERE user_id = ?`).get(userId);
+    await db.prepare(`INSERT INTO settings (user_id) VALUES (?)`).run(userId);
+    row = await db.prepare(`SELECT * FROM settings WHERE user_id = ?`).get(userId);
   }
   return {
     userId,
@@ -184,15 +184,15 @@ export const RESERVED_USERNAMES = new Set([
   "terms", "w", "www", "wishwell", "media", "_next", "static",
 ]);
 
-export function usernameIssue(username: string): string | null {
+export async function usernameIssue(username: string): Promise<string | null> {
   if (!/^[a-z0-9_]{3,24}$/i.test(username))
     return "Usernames use 3 to 24 letters, numbers, or underscores.";
   if (RESERVED_USERNAMES.has(username.toLowerCase())) return "That username is taken.";
-  const taken = db.prepare(`SELECT 1 FROM profiles WHERE username = ?`).get(username);
+  const taken = await db.prepare(`SELECT 1 FROM profiles WHERE username = ?`).get(username);
   return taken ? "That username is taken." : null;
 }
 
-export function createUser(opts: {
+export async function createUser(opts: {
   email: string;
   passwordHash?: string | null;
   username: string;
@@ -200,14 +200,14 @@ export function createUser(opts: {
   bio?: string | null;
   avatarUrl?: string | null;
   accent?: string;
-}): string {
-  return tx(() => {
+}): Promise<string> {
+  return tx(async (t) => {
     const userId = id();
     const ts = now();
-    db.prepare(
+    await t.prepare(
       `INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`,
     ).run(userId, opts.email, opts.passwordHash ?? null, ts);
-    db.prepare(
+    await t.prepare(
       `INSERT INTO profiles (user_id, username, display_name, bio, avatar_url, accent, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(
@@ -219,13 +219,13 @@ export function createUser(opts: {
       opts.accent ?? "madder",
       ts,
     );
-    db.prepare(`INSERT INTO settings (user_id) VALUES (?)`).run(userId);
+    await t.prepare(`INSERT INTO settings (user_id) VALUES (?)`).run(userId);
     return userId;
   });
 }
 
-export function findUserByEmail(email: string) {
-  return db.prepare(`SELECT * FROM users WHERE email = ?`).get(email) as
+export async function findUserByEmail(email: string) {
+  return await db.prepare(`SELECT * FROM users WHERE email = ?`).get(email) as
     | { id: string; email: string; password_hash: string | null }
     | undefined;
 }

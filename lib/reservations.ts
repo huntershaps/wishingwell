@@ -31,8 +31,8 @@ type ItemContext = {
   reservationDays: number;
 };
 
-function itemContext(itemId: string): ItemContext | null {
-  const row = db
+async function itemContext(itemId: string): Promise<ItemContext | null> {
+  const row = await db
     .prepare(
       `SELECT i.id AS itemId, i.name AS itemName,
               w.id AS wishlistId, w.title AS wishlistTitle, w.slug AS slug,
@@ -64,13 +64,13 @@ export function listHref(ctx: { username: string; slug: string }) {
  * lets exactly one commit and rejects the other, so the second buyer is told the
  * truth instead of quietly creating a duplicate gift.
  */
-export function reserveItem(opts: {
+export async function reserveItem(opts: {
   itemId: string;
   viewer: Viewer;
   note?: string | null;
   guestName?: string | null;
-}): ReserveResult {
-  const ctx = itemContext(opts.itemId);
+}): Promise<ReserveResult> {
+  const ctx = await itemContext(opts.itemId);
   if (!ctx) return { ok: false, error: "missing" };
   if (opts.viewer.userId && opts.viewer.userId === ctx.ownerId)
     return { ok: false, error: "own_item" };
@@ -82,8 +82,8 @@ export function reserveItem(opts: {
   const reservationId = id();
 
   try {
-    tx(() => {
-      db.prepare(
+    await tx(async (t) => {
+      await t.prepare(
         `INSERT INTO reservations
            (id, item_id, buyer_user_id, guest_token, guest_name, status, note, reserved_at, expires_at)
          VALUES (?, ?, ?, ?, ?, 'reserved', ?, ?, ?)`,
@@ -121,19 +121,19 @@ function ownsReservation(row: any, viewer: Viewer) {
   return !!viewer.guestToken && row.guest_token === viewer.guestToken;
 }
 
-function getReservation(reservationId: string) {
-  return db.prepare(`SELECT * FROM reservations WHERE id = ?`).get(reservationId) as any;
+async function getReservation(reservationId: string) {
+  return await db.prepare(`SELECT * FROM reservations WHERE id = ?`).get(reservationId) as any;
 }
 
-export function releaseReservation(reservationId: string, viewer: Viewer): boolean {
-  const row = getReservation(reservationId);
+export async function releaseReservation(reservationId: string, viewer: Viewer): Promise<boolean> {
+  const row = await getReservation(reservationId);
   if (!ownsReservation(row, viewer)) return false;
   if (row.status !== "reserved" && row.status !== "purchased") return false;
-  db.prepare(`UPDATE reservations SET status = 'released', released_at = ? WHERE id = ?`).run(
+  await db.prepare(`UPDATE reservations SET status = 'released', released_at = ? WHERE id = ?`).run(
     now(),
     reservationId,
   );
-  const ctx = itemContext(row.item_id);
+  const ctx = await itemContext(row.item_id);
   if (ctx)
     notifyGiftActivity({
       ownerId: ctx.ownerId,
@@ -146,15 +146,15 @@ export function releaseReservation(reservationId: string, viewer: Viewer): boole
   return true;
 }
 
-export function markPurchased(reservationId: string, viewer: Viewer): boolean {
-  const row = getReservation(reservationId);
+export async function markPurchased(reservationId: string, viewer: Viewer): Promise<boolean> {
+  const row = await getReservation(reservationId);
   if (!ownsReservation(row, viewer)) return false;
   if (row.status !== "reserved") return false;
-  db.prepare(`UPDATE reservations SET status = 'purchased', purchased_at = ?, expires_at = NULL WHERE id = ?`).run(
+  await db.prepare(`UPDATE reservations SET status = 'purchased', purchased_at = ?, expires_at = NULL WHERE id = ?`).run(
     now(),
     reservationId,
   );
-  const ctx = itemContext(row.item_id);
+  const ctx = await itemContext(row.item_id);
   if (ctx)
     notifyGiftActivity({
       ownerId: ctx.ownerId,
@@ -168,13 +168,13 @@ export function markPurchased(reservationId: string, viewer: Viewer): boolean {
 }
 
 /** Buyer says "still on it" — pushes the hold out by the owner's window. */
-export function extendReservation(reservationId: string, viewer: Viewer): number | null {
-  const row = getReservation(reservationId);
+export async function extendReservation(reservationId: string, viewer: Viewer): Promise<number | null> {
+  const row = await getReservation(reservationId);
   if (!ownsReservation(row, viewer) || row.status !== "reserved") return null;
-  const ctx = itemContext(row.item_id);
+  const ctx = await itemContext(row.item_id);
   if (!ctx || !ctx.expiresEnabled) return null;
   const next = now() + ctx.reservationDays * DAY;
-  db.prepare(`UPDATE reservations SET expires_at = ?, reminded_at = NULL WHERE id = ?`).run(
+  await db.prepare(`UPDATE reservations SET expires_at = ?, reminded_at = NULL WHERE id = ?`).run(
     next,
     reservationId,
   );
@@ -185,10 +185,10 @@ export function extendReservation(reservationId: string, viewer: Viewer): number
  * Releases holds nobody followed through on, and warns buyers a couple of days
  * out. Called on read paths — the work is index-bound and almost always empty.
  */
-export function runReservationMaintenance() {
+export async function runReservationMaintenance() {
   const ts = now();
 
-  const expired = db
+  const expired = await db
     .prepare(
       `SELECT r.id, r.buyer_user_id AS buyerId, i.name AS itemName, p.username, w.slug
          FROM reservations r
@@ -200,7 +200,7 @@ export function runReservationMaintenance() {
     .all(ts) as any[];
 
   for (const row of expired) {
-    db.prepare(`UPDATE reservations SET status = 'expired' WHERE id = ?`).run(row.id);
+    await db.prepare(`UPDATE reservations SET status = 'expired' WHERE id = ?`).run(row.id);
     if (row.buyerId)
       notifyBuyer({
         buyerId: row.buyerId,
@@ -211,7 +211,7 @@ export function runReservationMaintenance() {
       });
   }
 
-  const soon = db
+  const soon = await db
     .prepare(
       `SELECT r.id, r.buyer_user_id AS buyerId, r.expires_at AS expiresAt,
               i.name AS itemName, p.username, w.slug
@@ -226,7 +226,7 @@ export function runReservationMaintenance() {
     .all(ts, ts + 2 * DAY) as any[];
 
   for (const row of soon) {
-    db.prepare(`UPDATE reservations SET reminded_at = ? WHERE id = ?`).run(ts, row.id);
+    await db.prepare(`UPDATE reservations SET reminded_at = ? WHERE id = ?`).run(ts, row.id);
     notifyBuyer({
       buyerId: row.buyerId,
       type: "reservation_expiring",
@@ -262,10 +262,10 @@ export type BuyerReservation = {
   href: string;
 };
 
-export function listBuyerReservations(viewer: Viewer): BuyerReservation[] {
+export async function listBuyerReservations(viewer: Viewer): Promise<BuyerReservation[]> {
   if (!viewer.userId && !viewer.guestToken) return [];
-  runReservationMaintenance();
-  const rows = db
+  await runReservationMaintenance();
+  const rows = await db
     .prepare(
       `SELECT r.id, r.status, r.reserved_at AS reservedAt, r.expires_at AS expiresAt,
               r.purchased_at AS purchasedAt, r.released_at AS releasedAt, r.note,

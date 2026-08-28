@@ -21,15 +21,15 @@ export default async function ListEditorPage({
 }) {
   const { listId } = await params;
   const user = await requireUser();
-  const list = getWishlistById(listId);
+  const list = await getWishlistById(listId);
   if (!list || list.userId !== user.id) notFound();
 
-  const items = getItems(list.id, {
+  const items = await getItems(list.id, {
     viewer: { userId: user.id, guestToken: null },
     isOwner: true,
     surpriseMode: user.settings.surpriseMode,
   });
-  const stats = getListStats(list.id);
+  const stats = await getListStats(list.id);
   const username = user.profile.username;
   const publicPath = `/${username}/${list.slug}`;
 
