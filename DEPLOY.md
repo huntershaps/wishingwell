@@ -24,16 +24,24 @@ environment has to be told which one it is.
    and create an auth token for it. The URL looks like
    `libsql://wishwell-<something>.turso.io`.
 
-2. **Create the schema.** From this repository:
+2. **Put the credentials in `.env.turso`** (gitignored):
 
-       TURSO_DATABASE_URL=libsql://... TURSO_AUTH_TOKEN=... npm run migrate
+       TURSO_DATABASE_URL=libsql://...
+       TURSO_AUTH_TOKEN=...
 
-   It prints the table count and whether foreign keys are enforced. Cascade
-   deletes matter when an account is removed, so if that says `0`, say so before
-   going further.
+   Deliberately not `.env.local`: Next loads that file automatically, which would
+   point `npm run dev` and every verification suite at the live database. Only the
+   `:remote` commands read `.env.turso`, so touching production is always chosen.
 
-3. **Load the demo.** Same two variables, then `npm run seed`. It sends the whole
-   demo as one batch, so this is a single round trip rather than four hundred.
+3. **Create the schema and load the demo:**
+
+       npm run migrate:remote
+       npm run seed:remote
+
+   Migrate prints the table count and whether foreign keys are enforced. Cascade
+   deletes matter when an account is removed, so if that says `0`, stop and look
+   into it. The seed sends the whole demo as one batch: one round trip, not four
+   hundred.
 
 4. **Import the project into Vercel** from `huntershaps/wishingwell`. It detects
    Next.js; nothing needs configuring. Set these environment variables for
@@ -67,7 +75,7 @@ access to a link-only list, and claiming a gift works without signing up.
 **Putting the demo back.** Visitors sign in as `hunter@wishwell.app` and can edit
 what they find, so it drifts. Re-run the seed against the deployed database:
 
-    TURSO_DATABASE_URL=libsql://... TURSO_AUTH_TOKEN=... npm run seed
+    npm run seed:remote
 
 It deletes only `@wishwell.app` accounts and the data hanging off them, then
 rebuilds the demo. Real accounts are matched by neither step and are left alone.
