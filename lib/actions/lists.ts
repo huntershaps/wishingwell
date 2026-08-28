@@ -36,11 +36,14 @@ async function assertOwnsItem(itemId: string, userId: string) {
 /**
  * Stores an uploaded photograph or video note.
  *
- * Deployed on Netlify there is no disk to write to, so files go to Netlify
- * Blobs. Everywhere else — local development, or the container build — they are
- * written next to the database. Either way the item stores the same
- * /uploads/<name> path and app/uploads/[...file]/route.ts serves it from
- * whichever of the two it finds, so nothing downstream knows the difference.
+ * A serverless host has no disk that outlives the request, so each one gets its
+ * own object store: Netlify Blobs on Netlify, Blob storage on Vercel. Locally,
+ * and in the container build, files are written next to the database instead.
+ *
+ * Netlify and the disk both keep the /uploads/<name> path, served by
+ * app/uploads/[...file]/route.ts. Vercel Blob hands back an absolute URL of its
+ * own, which the item stores as-is. Either way an item holds a URL that works
+ * where it was created.
  */
 async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "video" } | null> {
   if (!file || file.size === 0) return null;
@@ -63,6 +66,15 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
     })[file.type] ?? (isVideo ? "mp4" : "jpg");
 
   const name = `${token(12)}.${ext}`;
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { put } = await import("@vercel/blob");
+    const blob = await put(`uploads/${name}`, file, {
+      access: "public",
+      contentType: file.type,
+    });
+    return { url: blob.url, kind: isVideo ? "video" : "image" };
+  }
 
   if (process.env.NETLIFY) {
     const { getStore } = await import("@netlify/blobs");
