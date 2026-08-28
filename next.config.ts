@@ -2,15 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
-  // Traced server bundle, so the deployed image carries the app and the handful
-  // of modules it actually imports rather than the whole node_modules tree.
-  output: "standalone",
+  // Traced server bundle for the container build, so the image carries the app
+  // and the modules it imports rather than the whole node_modules tree. Netlify's
+  // adapter decides its own output, so it is left alone there.
+  output: process.env.NETLIFY ? undefined : "standalone",
   serverExternalPackages: ["@libsql/client"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
-      // Uploads live in Vercel Blob when the app is deployed there.
-      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
   },
 };

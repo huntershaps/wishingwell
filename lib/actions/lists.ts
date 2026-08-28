@@ -36,11 +36,11 @@ async function assertOwnsItem(itemId: string, userId: string) {
 /**
  * Stores an uploaded photograph or video note.
  *
- * On Vercel there is no disk to write to, so files go to Blob storage and the
- * item keeps the absolute URL it comes back with. Everywhere else — local
- * development, or the container build — they are written next to the database
- * and served by app/uploads/[...file]/route.ts. Which one is in play is decided
- * by whether a Blob token exists, so neither environment needs to be told.
+ * Deployed on Netlify there is no disk to write to, so files go to Netlify
+ * Blobs. Everywhere else — local development, or the container build — they are
+ * written next to the database. Either way the item stores the same
+ * /uploads/<name> path and app/uploads/[...file]/route.ts serves it from
+ * whichever of the two it finds, so nothing downstream knows the difference.
  */
 async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "video" } | null> {
   if (!file || file.size === 0) return null;
@@ -64,13 +64,12 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
 
   const name = `${token(12)}.${ext}`;
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const { put } = await import("@vercel/blob");
-    const blob = await put(`uploads/${name}`, file, {
-      access: "public",
-      contentType: file.type,
+  if (process.env.NETLIFY) {
+    const { getStore } = await import("@netlify/blobs");
+    await getStore("uploads").set(name, await file.arrayBuffer(), {
+      metadata: { contentType: file.type },
     });
-    return { url: blob.url, kind: isVideo ? "video" : "image" };
+    return { url: `/uploads/${name}`, kind: isVideo ? "video" : "image" };
   }
 
   await fs.mkdir(/*turbopackIgnore: true*/ UPLOAD_DIR, { recursive: true });

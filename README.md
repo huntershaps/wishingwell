@@ -138,9 +138,9 @@ scripts/                        media pipeline, seed, verification
   `.data/wishwell.db` during development, and Turso when `TURSO_DATABASE_URL` is set.
   Same driver, same SQL, so there is nothing to switch between. All access still goes
   through `lib/queries.ts` and `lib/actions/*`.
-- Uploads go to `public/uploads` locally and to Vercel Blob when
-  `BLOB_READ_WRITE_TOKEN` exists. Files written to disk are served by
-  `app/uploads/[...file]/route.ts`.
+- Uploads go to `public/uploads` locally and to Netlify Blobs when deployed.
+  Both are served from `/uploads/<name>` by `app/uploads/[...file]/route.ts`,
+  with byte ranges so video seeks.
 - `npm run seed` restores the demo. It only deletes accounts with a `@wishwell.app`
   address, so it is safe to run against the deployed database: real accounts survive.
 - See `DEPLOY.md` for deploying.
