@@ -2,9 +2,11 @@
 // server bundle rather than depending on a file path at runtime.
 export const SCHEMA = `
 -- Wishwell schema. SQLite. Timestamps are unix epoch milliseconds (INTEGER).
-
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+--
+-- No PRAGMAs here. journal_mode and busy_timeout describe how a local file is
+-- opened, which is lib/db's business, and Turso refuses the statement outright:
+-- "SQL not allowed statement: PRAGMA journal_mode = WAL". This string has to be
+-- the schema and nothing else, because both places have to accept all of it.
 
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,

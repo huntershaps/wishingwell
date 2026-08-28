@@ -270,13 +270,11 @@ function notify(opts: {
 }
 
 function events(list: string, views: number, shares: number, overDays = 30) {
-  const stmt = db.prepare(
-    `INSERT INTO wishlist_events (id, wishlist_id, kind, created_at) VALUES (?, ?, ?, ?)`,
-  );
+  const SQL = `INSERT INTO wishlist_events (id, wishlist_id, kind, created_at) VALUES (?, ?, ?, ?)`;
   for (let i = 0; i < views; i++)
-    stmt.run(id(), lists[list], "view", T - Math.floor(Math.random() * overDays * DAY));
+    q(SQL, id(), lists[list], "view", T - Math.floor(Math.random() * overDays * DAY));
   for (let i = 0; i < shares; i++)
-    stmt.run(id(), lists[list], "share", T - Math.floor(Math.random() * overDays * DAY));
+    q(SQL, id(), lists[list], "share", T - Math.floor(Math.random() * overDays * DAY));
 }
 
 // --------------------------------------------------------------------- data
@@ -1240,7 +1238,44 @@ q(`UPDATE wishlists SET updated_at = COALESCE(
 
 async function main() {
   await migrate();
-  await client.batch(statements, "write");
+
+  try {
+    await client.batch(statements, "write");
+  } catch (err) {
+    // A failed batch names the error but not the statement behind it, which is no
+    // help across several hundred inserts. Commit in small chunks instead, then
+    // one at a time inside the chunk that fails, until something is to blame.
+    process.stderr.write(`
+Batch failed, narrowing it down.
+`);
+    const SIZE = 20;
+    for (let i = 0; i < statements.length; i += SIZE) {
+      const chunk = statements.slice(i, i + SIZE);
+      try {
+        await client.batch(chunk, "write");
+        continue;
+      } catch {
+        for (const [j, statement] of chunk.entries()) {
+          try {
+            await client.batch([statement], "write");
+          } catch {
+            process.stderr.write(
+              `
+Statement ${i + j + 1} of ${statements.length} is the one that fails:
+` +
+                `  ${statement.sql.trim().replace(/\s+/g, " ").slice(0, 200)}
+` +
+                `  args: ${JSON.stringify(statement.args).slice(0, 240)}
+
+`,
+            );
+            throw err;
+          }
+        }
+      }
+    }
+    throw err;
+  }
 
   const counts = await db
     .prepare(

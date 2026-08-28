@@ -57,7 +57,9 @@ if (process.env.NODE_ENV !== "production") globalThis.__wishwellClient = client;
 async function ready(): Promise<void> {
   if (isRemote) return;
   globalThis.__wishwellReady ??= (async () => {
-    await client.executeMultiple(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;`);
+    await client.executeMultiple(
+      `PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;`,
+    );
     await client.executeMultiple(SCHEMA);
   })();
   await globalThis.__wishwellReady;
