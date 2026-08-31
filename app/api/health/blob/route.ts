@@ -22,10 +22,7 @@ export async function GET(request: Request) {
     const { head } = await import("@vercel/blob");
     const explicit = blobToken();
     try {
-      const meta = await head(inspect, {
-        access: "private",
-        ...(explicit ? { token: explicit } : {}),
-      });
+      const meta = await head(inspect, explicit ? { token: explicit } : {});
       return Response.json({ pathname: meta.pathname, size: meta.size, contentType: meta.contentType });
     } catch (err) {
       return Response.json({ error: String((err as Error).message).slice(0, 200) }, { status: 404 });
@@ -58,10 +55,7 @@ export async function GET(request: Request) {
     });
     const bytes = found?.stream ? new Uint8Array(await new Response(found.stream).arrayBuffer()) : null;
     const { head } = await import("@vercel/blob");
-    const meta = await head(blob.pathname, {
-      access: "private",
-      ...(explicitToken ? { token: explicitToken } : {}),
-    });
+    const meta = await head(blob.pathname, explicitToken ? { token: explicitToken } : {});
     await del(blob.url, explicitToken ? { token: explicitToken } : undefined);
     return Response.json({
       ok: true,
