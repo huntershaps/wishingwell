@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
       // Uploads land here when the app is deployed on Vercel.
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+      // An item's photograph is usually the one on the page it is sold from,
+      // which is the whole premise of the product. These are the two hosts that
+      // serve those pictures. Listing images can disappear when a listing ends,
+      // so anything meant to last should be uploaded rather than linked.
+      { protocol: "https", hostname: "i.ebayimg.com" },
+      { protocol: "https", hostname: "m.media-amazon.com" },
     ],
   },
 };
