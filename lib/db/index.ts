@@ -38,7 +38,14 @@ declare global {
 
 function connect(): Client {
   if (remoteUrl) {
-    return createClient({ url: remoteUrl, authToken: process.env.TURSO_AUTH_TOKEN });
+    // A libsql:// URL makes the client open a WebSocket and hold it. That is the
+    // right shape for a long-lived server and the wrong one for a serverless
+    // function, where it fails outright: Turso answers the upgrade with a 400 and
+    // every query dies with it, while the same credentials work over HTTP. Asking
+    // for https:// selects the request-per-query transport, which is also what a
+    // function that may not outlive the request should be using.
+    const url = remoteUrl.replace(/^libsql:\/\//, "https://");
+    return createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
   }
   fs.mkdirSync(/*turbopackIgnore: true*/ DATA_DIR, { recursive: true });
   // libSQL wants a URL, and a Windows path with backslashes is not one.
