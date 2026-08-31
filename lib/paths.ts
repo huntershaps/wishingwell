@@ -13,3 +13,18 @@ export const DATA_DIR =
 
 export const UPLOAD_DIR =
   process.env.WISHWELL_UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads");
+
+/**
+ * The Vercel Blob credential.
+ *
+ * `put()` reads BLOB_READ_WRITE_TOKEN by itself, but Vercel only uses that exact
+ * name for a project's default store; any other store arrives prefixed with the
+ * store's name, and the SDK never sees it. So find it by suffix and pass it in.
+ */
+export function blobToken(): string | undefined {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  const match = Object.entries(process.env).find(
+    ([key, value]) => key.endsWith("BLOB_READ_WRITE_TOKEN") && value,
+  );
+  return match?.[1];
+}

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { blobToken } from "@/lib/paths";
 
 /**
  * Readiness for the platform's health check: the server is up and the database
@@ -26,11 +27,14 @@ export async function GET() {
     tokenLength: rawToken?.length ?? 0,
     // Where uploads go. Without one of these on a serverless host there is no
     // disk to fall back to, and adding a photo fails while everything else works.
-    uploads: process.env.BLOB_READ_WRITE_TOKEN
+    uploads: blobToken()
       ? "vercel-blob"
       : process.env.NETLIFY
         ? "netlify-blobs"
         : "disk",
+    // Vercel prefixes the variable when a store is not the project default, so
+    // the name matters. Names only — a value here would be a live credential.
+    blobVars: Object.keys(process.env).filter((k) => k.includes("BLOB")),
   };
 
   try {
