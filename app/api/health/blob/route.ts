@@ -25,13 +25,18 @@ export async function GET() {
     const { put, del } = await import("@vercel/blob");
     const explicitToken = blobToken();
     const blob = await put(`health/probe-${Date.now()}.txt`, "probe", {
-      access: "public",
+      access: "private",
       contentType: "text/plain",
       ...(explicitToken ? { token: explicitToken } : {}),
     });
-    const readback = await fetch(blob.url).then((r) => r.status);
+    const { get } = await import("@vercel/blob");
+    const found = await get(blob.pathname, {
+      access: "private",
+      ...(explicitToken ? { token: explicitToken } : {}),
+    });
+    const readback = found ? (await new Response(found.stream).text()) : "(not found)";
     await del(blob.url, explicitToken ? { token: explicitToken } : undefined);
-    return Response.json({ ok: true, destination: where, url: blob.url, readback });
+    return Response.json({ ok: true, destination: where, pathname: blob.pathname, readback });
   } catch (err) {
     const e = err as Error & { code?: string; status?: number };
     return Response.json(

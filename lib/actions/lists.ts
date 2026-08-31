@@ -74,13 +74,15 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
   if (hasVercelBlob()) {
     const explicitToken = blobToken();
     const { put } = await import("@vercel/blob");
-    const blob = await put(`uploads/${name}`, file, {
-      access: "public",
+    // A private store, so nothing anyone uploads is publicly enumerable. The app
+    // serves these itself, the same way it serves the ones written to disk, which
+    // is why the stored path is identical in both cases.
+    await put(`uploads/${name}`, file, {
+      access: "private",
       contentType: file.type,
-      // Omitted when the store authenticates by OIDC, which is the current default.
       ...(explicitToken ? { token: explicitToken } : {}),
     });
-    return { url: blob.url, kind: isVideo ? "video" : "image" };
+    return { url: `/uploads/${name}`, kind: isVideo ? "video" : "image" };
   }
 
   if (process.env.NETLIFY) {

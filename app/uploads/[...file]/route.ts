@@ -1,15 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { UPLOAD_DIR } from "@/lib/paths";
+import { UPLOAD_DIR, blobToken, hasVercelBlob } from "@/lib/paths";
 
 /**
  * Serves the photographs and video notes people upload.
  *
- * Deployed on Netlify they live in Netlify Blobs, because a serverless function
- * has no disk that outlives the request. Locally, and in the container build,
- * they are files next to the database. Both are served from the same
- * /uploads/<name> path, so an item's stored URL is correct in either place.
+ * Deployed, they live in object storage, because a serverless function has no
+ * disk that outlives the request: Vercel Blob on Vercel, Netlify Blobs on
+ * Netlify. Locally, and in the container build, they are files next to the
+ * database. All three are served from the same /uploads/<name> path, so an
+ * item's stored URL is correct wherever it was created.
  *
  * Byte ranges are the reason this does more than read a file: without them
  * Safari refuses to play video, and scrubbing re-downloads the whole clip.
@@ -59,6 +60,31 @@ export async function GET(
     // The name carries a random token and the bytes never change under it.
     "Cache-Control": "public, max-age=31536000, immutable",
   });
+
+  if (hasVercelBlob()) {
+    const explicitToken = blobToken();
+    const { get } = await import("@vercel/blob");
+    const found = await get(`uploads/${file[0]}`, {
+      access: "private",
+      ...(explicitToken ? { token: explicitToken } : {}),
+    });
+    if (!found) return new Response("Not found", { status: 404 });
+
+    const body = new Uint8Array(await new Response(found.stream).arrayBuffer());
+    const range = parseRange(request.headers.get("range"), body.byteLength);
+    if (range && "invalid" in range) {
+      headers.set("Content-Range", `bytes */${body.byteLength}`);
+      return new Response(null, { status: 416, headers });
+    }
+    if (range) {
+      const slice = body.subarray(range.start, range.end + 1);
+      headers.set("Content-Range", `bytes ${range.start}-${range.end}/${body.byteLength}`);
+      headers.set("Content-Length", String(slice.byteLength));
+      return new Response(slice, { status: 206, headers });
+    }
+    headers.set("Content-Length", String(body.byteLength));
+    return new Response(body, { headers });
+  }
 
   if (process.env.NETLIFY) {
     const { getStore } = await import("@netlify/blobs");
