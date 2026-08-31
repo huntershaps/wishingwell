@@ -24,7 +24,13 @@ export async function GET() {
       ? createHash("sha256").update(rawToken).digest("hex").slice(0, 12)
       : null,
     tokenLength: rawToken?.length ?? 0,
-    tokenTrimmedLength: rawToken?.trim().length ?? 0,
+    // Where uploads go. Without one of these on a serverless host there is no
+    // disk to fall back to, and adding a photo fails while everything else works.
+    uploads: process.env.BLOB_READ_WRITE_TOKEN
+      ? "vercel-blob"
+      : process.env.NETLIFY
+        ? "netlify-blobs"
+        : "disk",
   };
 
   try {
