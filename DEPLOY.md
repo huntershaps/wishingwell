@@ -59,12 +59,23 @@ on Vercel or `NETLIFY` on Netlify. No environment has to be told which it is.
    function has no disk. Hobby storage is capped at a few hundred megabytes, and
    a video note can be 40MB, so it is worth knowing where the ceiling is.
 
-6. **Add the domain.** `wishwell.huntermshaps.com` in the project's Domains tab,
-   then create the record it shows you wherever huntermshaps.com's DNS lives:
+6. **Add the domain.** `huntershapiro.com` in the project's Domains tab. Add
+   `www.huntershapiro.com` too and let Vercel redirect it to the apex.
 
-       CNAME   wishwell   cname.vercel-dns.com
+   Its DNS is on Cloudflare, so create the records there. An apex domain cannot
+   be a CNAME, so this is an **A record** — and the value is whatever the domain
+   card in Vercel shows, *not* the 76.76.21.21 everyone quotes. Newer projects
+   draw from a pool of anycast addresses, so copy the one on the card:
 
-   The certificate is issued once that resolves.
+       Type    Name    Value                      Proxy
+       A       @       <the value Vercel shows>   DNS only
+       CNAME   www     cname.vercel-dns.com       DNS only
+
+   **Both records must be grey-cloud "DNS only", not orange.** A proxied record
+   stops Vercel validating the domain and issuing its certificate; if you do
+   proxy it later, Cloudflare's SSL mode has to be Full (strict) or requests loop.
+
+   The certificate is issued automatically once the records resolve.
 
 ## After it is up
 
