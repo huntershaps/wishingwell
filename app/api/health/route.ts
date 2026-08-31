@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 
 /**
@@ -13,9 +14,17 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const url = process.env.TURSO_DATABASE_URL;
+  const rawToken = process.env.TURSO_AUTH_TOKEN;
   const configured = {
     databaseUrl: url ? new URL(url.replace(/^libsql:/, "https:")).host : "missing",
-    authToken: process.env.TURSO_AUTH_TOKEN ? "set" : "missing",
+    authToken: rawToken ? "set" : "missing",
+    // A hash prefix, so a token that arrived truncated, quoted or with a stray
+    // newline can be told apart from the working one without either being shown.
+    tokenFingerprint: rawToken
+      ? createHash("sha256").update(rawToken).digest("hex").slice(0, 12)
+      : null,
+    tokenLength: rawToken?.length ?? 0,
+    tokenTrimmedLength: rawToken?.trim().length ?? 0,
   };
 
   try {
