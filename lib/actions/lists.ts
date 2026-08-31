@@ -7,7 +7,7 @@ import path from "node:path";
 import { requireUser } from "@/lib/auth";
 import { db, id, now, token, tx } from "@/lib/db";
 import { slugify } from "@/lib/format";
-import { UPLOAD_DIR, blobToken } from "@/lib/paths";
+import { UPLOAD_DIR, blobToken, hasVercelBlob } from "@/lib/paths";
 import type { Priority, Visibility } from "@/lib/types";
 
 export type ListFormState = { error?: string; field?: string } | null;
@@ -67,13 +67,14 @@ async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "
 
   const name = `${token(12)}.${ext}`;
 
-  const vercelBlob = blobToken();
-  if (vercelBlob) {
+  if (hasVercelBlob()) {
+    const explicitToken = blobToken();
     const { put } = await import("@vercel/blob");
     const blob = await put(`uploads/${name}`, file, {
       access: "public",
       contentType: file.type,
-      token: vercelBlob,
+      // Omitted when the store authenticates by OIDC, which is the current default.
+      ...(explicitToken ? { token: explicitToken } : {}),
     });
     return { url: blob.url, kind: isVideo ? "video" : "image" };
   }

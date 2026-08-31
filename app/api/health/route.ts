@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
-import { blobToken } from "@/lib/paths";
+import { blobToken, hasVercelBlob } from "@/lib/paths";
 
 /**
  * Readiness for the platform's health check: the server is up and the database
@@ -27,8 +27,8 @@ export async function GET() {
     tokenLength: rawToken?.length ?? 0,
     // Where uploads go. Without one of these on a serverless host there is no
     // disk to fall back to, and adding a photo fails while everything else works.
-    uploads: blobToken()
-      ? "vercel-blob"
+    uploads: hasVercelBlob()
+      ? (blobToken() ? "vercel-blob (token)" : "vercel-blob (oidc)")
       : process.env.NETLIFY
         ? "netlify-blobs"
         : "disk",

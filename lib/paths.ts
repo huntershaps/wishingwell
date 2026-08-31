@@ -15,11 +15,11 @@ export const UPLOAD_DIR =
   process.env.WISHWELL_UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads");
 
 /**
- * The Vercel Blob credential.
+ * The Vercel Blob credential, when there is one to find.
  *
- * `put()` reads BLOB_READ_WRITE_TOKEN by itself, but Vercel only uses that exact
- * name for a project's default store; any other store arrives prefixed with the
- * store's name, and the SDK never sees it. So find it by suffix and pass it in.
+ * A store connected the old way exports BLOB_READ_WRITE_TOKEN, and a store that
+ * is not the project default exports it under its own prefix, which the SDK
+ * would never look for. Either is passed to `put()` explicitly.
  */
 export function blobToken(): string | undefined {
   if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
@@ -27,4 +27,16 @@ export function blobToken(): string | undefined {
     ([key, value]) => key.endsWith("BLOB_READ_WRITE_TOKEN") && value,
   );
   return match?.[1];
+}
+
+/**
+ * Whether uploads can go to Vercel Blob.
+ *
+ * A store connected today exports no read-write token at all: it exports
+ * BLOB_STORE_ID, and the SDK authenticates with the deployment's own OIDC
+ * identity. Requiring a token here is what made a correctly connected store look
+ * absent and sent uploads to a disk that does not exist.
+ */
+export function hasVercelBlob(): boolean {
+  return Boolean(blobToken() || process.env.BLOB_STORE_ID);
 }
