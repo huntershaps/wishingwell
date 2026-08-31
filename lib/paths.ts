@@ -40,3 +40,10 @@ export function blobToken(): string | undefined {
 export function hasVercelBlob(): boolean {
   return Boolean(blobToken() || process.env.BLOB_STORE_ID);
 }
+
+/** Where an upload would be written, for logs and the health check. */
+export function destination(): string {
+  if (hasVercelBlob()) return blobToken() ? "vercel-blob (token)" : "vercel-blob (oidc)";
+  if (process.env.NETLIFY) return "netlify-blobs";
+  return "disk";
+}

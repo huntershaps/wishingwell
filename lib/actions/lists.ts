@@ -7,7 +7,7 @@ import path from "node:path";
 import { requireUser } from "@/lib/auth";
 import { db, id, now, token, tx } from "@/lib/db";
 import { slugify } from "@/lib/format";
-import { UPLOAD_DIR, blobToken, hasVercelBlob } from "@/lib/paths";
+import { UPLOAD_DIR, blobToken, destination, hasVercelBlob } from "@/lib/paths";
 import type { Priority, Visibility } from "@/lib/types";
 
 export type ListFormState = { error?: string; field?: string } | null;
@@ -46,7 +46,11 @@ async function assertOwnsItem(itemId: string, userId: string) {
  * where it was created.
  */
 async function storeUpload(file: File): Promise<{ url: string; kind: "image" | "video" } | null> {
-  if (!file || file.size === 0) return null;
+  if (!file || file.size === 0) {
+    console.log("upload: nothing submitted");
+    return null;
+  }
+  console.log("upload: received", file.size, "bytes of", file.type, "→", destination());
   const isVideo = file.type.startsWith("video/");
   const isImage = file.type.startsWith("image/");
   if (!isVideo && !isImage) throw new Error("Only images and videos can be uploaded.");
@@ -117,7 +121,15 @@ export async function createListAction(_prev: ListFormState, form: FormData): Pr
 
   const listId = id();
   const ts = now();
-  const cover = await storeUpload(form.get("cover") as File).catch(() => null);
+  let cover: { url: string; kind: "image" | "video" } | null = null;
+  try {
+    cover = await storeUpload(form.get("cover") as File);
+  } catch (err) {
+    // Silently saving a list without the photograph somebody chose is worse than
+    // telling them, and it hid a broken upload path for an entire deployment.
+    console.error("cover upload failed", err);
+    return { error: "That cover photo could not be saved. The list was not created.", field: "cover" };
+  }
 
   await db.prepare(
     `INSERT INTO wishlists
