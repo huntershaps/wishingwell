@@ -8,8 +8,14 @@ export type Variant = "feature" | "tall" | "standard" | "quiet";
  * The scale is derived from the item itself — what the owner pinned, how badly
  * they want it, whether they filmed a note, how much they gave us to look at —
  * so the page composes differently for every list instead of repeating one grid.
+ *
+ * Sorted by price, a visitor is comparing rather than browsing, so nothing is
+ * featured and every item gets the same weight.
  */
-export function planLayout(items: Item[]): { item: Item; variant: Variant }[] {
+export function planLayout(
+  items: Item[],
+  { features: allowFeatures = true }: { features?: boolean } = {},
+): { item: Item; variant: Variant }[] {
   let features = 0;
   let sinceFeature = 99;
 
@@ -19,7 +25,7 @@ export function planLayout(items: Item[]): { item: Item; variant: Variant }[] {
     const roomForFeature = features < 2 && sinceFeature >= 3 && item.media.length > 0;
 
     let variant: Variant;
-    if (wantsFeature && roomForFeature) {
+    if (allowFeatures && wantsFeature && roomForFeature) {
       variant = "feature";
       features += 1;
       sinceFeature = 0;

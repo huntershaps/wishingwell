@@ -340,6 +340,59 @@ export async function updateItemAction(_prev: ListFormState, form: FormData): Pr
   return null;
 }
 
+/**
+ * Saves the order visitors see a list in. The client sends the whole order, so
+ * a save that lands late cannot leave the list half moved. Anything it did not
+ * know about (an item added in another tab) keeps its place after the rest.
+ */
+export async function reorderItemsAction(
+  listId: string,
+  orderedIds: string[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireUser();
+  await assertOwnsList(listId, user.id);
+  if (!Array.isArray(orderedIds) || orderedIds.length > 1000) {
+    return { ok: false, error: "That order could not be read." };
+  }
+
+  const rows = await db
+    .prepare(
+      `SELECT id FROM items WHERE wishlist_id = ? AND archived_at IS NULL
+        ORDER BY position, created_at DESC`,
+    )
+    .all(listId) as { id: string }[];
+  const known = new Set(rows.map((r) => r.id));
+  const seen = new Set<string>();
+  const order: string[] = [];
+  for (const itemId of orderedIds) {
+    if (typeof itemId === "string" && known.has(itemId) && !seen.has(itemId)) {
+      seen.add(itemId);
+      order.push(itemId);
+    }
+  }
+  for (const row of rows) if (!seen.has(row.id)) order.push(row.id);
+  if (order.length === 0) return { ok: true };
+
+  // One statement, so the whole order lands together and costs one round trip
+  // to Turso rather than one per item.
+  const cases = order.map(() => "WHEN ? THEN ?").join(" ");
+  const marks = order.map(() => "?").join(",");
+  await db
+    .prepare(
+      `UPDATE items SET position = CASE id ${cases} END
+        WHERE wishlist_id = ? AND id IN (${marks})`,
+    )
+    .run(...order.flatMap((itemId, index) => [itemId, index]), listId, ...order);
+  await db.prepare(`UPDATE wishlists SET updated_at = ? WHERE id = ?`).run(now(), listId);
+
+  const slug = (await db.prepare(`SELECT slug FROM wishlists WHERE id = ?`).get(listId) as
+    | { slug: string }
+    | undefined)?.slug;
+  if (slug) revalidatePath(`/${user.profile.username}/${slug}`);
+  revalidatePath(`/dashboard/lists/${listId}`);
+  return { ok: true };
+}
+
 export async function deleteItemAction(form: FormData) {
   const user = await requireUser();
   const itemId = String(form.get("itemId") ?? "");

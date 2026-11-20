@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { blurFor } from "@/lib/blur";
 import { money, PRIORITY } from "@/lib/format";
 import { RATIO, type Variant } from "@/lib/layout";
 import type { Item } from "@/lib/types";
@@ -18,10 +17,12 @@ function Frame({
   item,
   variant,
   priority,
+  blur,
 }: {
   item: Item;
   variant: Variant;
   priority?: boolean;
+  blur?: string;
 }) {
   const image = firstImage(item);
   const clip = video(item);
@@ -45,8 +46,8 @@ function Frame({
               ? "(max-width: 640px) 100vw, 60vw"
               : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           }
-          placeholder={blurFor(src) ? "blur" : "empty"}
-          blurDataURL={blurFor(src)}
+          placeholder={blur ? "blur" : "empty"}
+          blurDataURL={blur}
           priority={priority}
           className={`object-cover transition-[transform,filter] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.035] ${
             claimed && !item.reservedByViewer ? "saturate-[0.55] brightness-[0.82]" : ""
@@ -114,11 +115,14 @@ export function ItemCard({
   variant,
   href,
   index,
+  blur,
 }: {
   item: Item;
   variant: Variant;
   href: string;
   index: number;
+  /** Blur-up placeholder for the lead image, worked out on the server. */
+  blur?: string;
 }) {
   const claimed = item.giftState === "reserved" || item.giftState === "purchased";
 
@@ -131,7 +135,7 @@ export function ItemCard({
           className={`block lg:col-span-7 ${flip ? "lg:order-2" : ""}`}
           aria-label={`Open ${item.name}`}
         >
-          <Frame item={item} variant="feature" priority={index < 2} />
+          <Frame item={item} variant="feature" priority={index < 2} blur={blur} />
         </Link>
         <div className={`lg:col-span-5 ${flip ? "lg:order-1" : ""}`}>
           <Ribbon>{item.priority === "dream" ? "The dream item" : "Featured"}</Ribbon>
@@ -160,7 +164,7 @@ export function ItemCard({
   return (
     <article className="group flex flex-col">
       <Link href={href} className="block" aria-label={`Open ${item.name}`}>
-        <Frame item={item} variant={variant} priority={index < 3} />
+        <Frame item={item} variant={variant} priority={index < 3} blur={blur} />
       </Link>
       <div className="mt-3 flex flex-1 flex-col">
         <h3 className="display text-[17px] leading-tight balance sm:text-[18px]">

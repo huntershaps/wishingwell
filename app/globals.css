@@ -256,6 +256,18 @@ body {
 
 .btn-sm { min-height: 36px; padding: 0.4375rem 0.75rem; font-size: 13px; }
 
+/* A toggle in a row of choices. The pressed state lives here rather than in
+   utilities because .btn is unlayered and outranks every Tailwind class, which
+   is how the filter's selected pill once rendered exactly like the others. */
+.btn-pill { border-radius: 999px; padding-inline: 0.75rem; --btn-fg: var(--color-muted); }
+@media (min-width: 40rem) { .btn-pill { padding-inline: 0.875rem; } }
+.btn-pill:hover:not(:disabled) {
+  --btn-fg: var(--color-fg);
+  --btn-bg: color-mix(in oklab, var(--color-fg) 7%, transparent);
+}
+.btn-pill[aria-pressed="true"],
+.btn-pill[aria-pressed="true"]:hover:not(:disabled) { --btn-bg: var(--color-fg); --btn-fg: var(--color-bg); }
+
 .field {
   width: 100%;
   padding: 0.6875rem 0.875rem;

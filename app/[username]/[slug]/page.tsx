@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { getGuestToken, getCurrentUser, getSettings } from "@/lib/auth";
 import { blurFor } from "@/lib/blur";
 import { countdownToEvent, longDate, monthYear } from "@/lib/format";
-import { planLayout, SPAN } from "@/lib/layout";
+import { readViewParams } from "@/lib/price";
 import {
   checkAccess,
   getItems,
@@ -14,10 +14,8 @@ import {
   recordEvent,
 } from "@/lib/queries";
 import { Avatar, Ribbon } from "@/components/ui/bits";
-import { Reveal } from "@/components/ui/reveal";
 import { Wordmark } from "@/components/brand";
-import { GalleryFilter } from "@/components/wishlist/gallery-filter";
-import { ItemCard } from "@/components/wishlist/item-card";
+import { GalleryWall } from "@/components/wishlist/gallery-wall";
 import { ListProvider } from "@/components/wishlist/list-context";
 import { ShareButton } from "@/components/wishlist/share";
 
@@ -74,8 +72,12 @@ function Locked({
   );
 }
 
-export default async function WishlistPage({ params }: Params) {
+export default async function WishlistPage({
+  params,
+  searchParams,
+}: Params & { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { username, slug } = await params;
+  const view = readViewParams(await searchParams);
   const profile = await getPublicProfile(username);
   const list = profile ? await getWishlistBySlug(username, slug) : null;
   if (!profile || !list) notFound();
@@ -97,7 +99,15 @@ export default async function WishlistPage({ params }: Params) {
 
   if (!access.isOwner) await recordEvent(list.id, "view");
 
-  const plan = planLayout(items);
+  // The blur-up placeholders are read from disk, so they are looked up here and
+  // handed to the wall rather than worked out in the browser.
+  const blurs: Record<string, string> = {};
+  for (const item of items) {
+    const lead = item.media.find((m) => m.kind === "image")?.url ??
+      item.media.find((m) => m.kind === "video")?.posterUrl;
+    const blur = blurFor(lead);
+    if (blur) blurs[item.id] = blur;
+  }
   const claimedCount = items.filter(
     (i) => i.giftState === "reserved" || i.giftState === "purchased",
   ).length;
@@ -303,36 +313,14 @@ export default async function WishlistPage({ params }: Params) {
                 </p>
               ) : null}
 
-              <GalleryFilter
-                counts={{ all: items.length, available: availableCount, claimed: claimedCount }}
+              <GalleryWall
+                items={items}
+                blurs={blurs}
+                basePath={listHref}
+                ownerFirstName={firstName}
                 hideClaimed={access.isOwner && ownerSettings.surpriseMode}
-              >
-                <div className="grid grid-cols-1 gap-x-5 gap-y-12 sm:grid-cols-4 sm:gap-y-14 lg:grid-cols-6">
-                  {plan.map(({ item, variant }, index) => (
-                    <Reveal
-                      key={item.id}
-                      className={SPAN[variant]}
-                      delay={Math.min(index, 4) * 55}
-                      variant={variant === "feature" ? "rise" : "mask"}
-                    >
-                      <div
-                        data-item-state={
-                          item.giftState === "available" || item.giftState === "hidden"
-                            ? "available"
-                            : "claimed"
-                        }
-                      >
-                        <ItemCard
-                          item={item}
-                          variant={variant}
-                          href={`/${username}/${slug}/i/${item.id}`}
-                          index={index}
-                        />
-                      </div>
-                    </Reveal>
-                  ))}
-                </div>
-              </GalleryFilter>
+                initial={view}
+              />
             </>
           )}
         </main>

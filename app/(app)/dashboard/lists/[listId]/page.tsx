@@ -9,6 +9,7 @@ import { longDate, money, PRIORITY } from "@/lib/format";
 import { getItems, getListStats, getWishlistById } from "@/lib/queries";
 import { ConfirmButton } from "@/components/app/confirm-button";
 import { ItemComposer } from "@/components/app/item-composer";
+import { ItemOrder } from "@/components/app/item-order";
 import { ListForm } from "@/components/app/list-form";
 import { ShareButton } from "@/components/wishlist/share";
 
@@ -123,14 +124,17 @@ export default async function ListEditorPage({
             </div>
           </div>
         ) : (
-          <ul className="mt-4 border-t border-rule">
-            {items.map((item) => {
+          <ItemOrder
+            listId={list.id}
+            rows={items.map((item) => {
               const image = item.media.find((m) => m.kind === "image");
               const hasVideo = item.media.some((m) => m.kind === "video");
-              return (
-                <li key={item.id} className="border-b border-rule">
-                  <div className="flex items-center gap-4 py-3.5">
-                    <span className="relative block h-16 w-16 shrink-0 overflow-hidden bg-bg-sunk">
+              return {
+                id: item.id,
+                name: item.name,
+                content: (
+                  <>
+                    <span className="relative block h-14 w-14 shrink-0 overflow-hidden bg-bg-sunk sm:h-16 sm:w-16">
                       {image ? (
                         <Image
                           src={image.url}
@@ -144,46 +148,50 @@ export default async function ListEditorPage({
                       ) : null}
                     </span>
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-[15.5px] font-medium leading-tight">{item.name}</h3>
-                      <p className="label mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        {item.priceCents != null ? (
-                          <span className="numeric">{money(item.priceCents, item.currency)}</span>
-                        ) : (
-                          <span>No price</span>
-                        )}
-                        <span aria-hidden className="opacity-40">·</span>
-                        <span>{PRIORITY[item.priority].short}</span>
-                        <span aria-hidden className="opacity-40">·</span>
-                        <span>
-                          {item.media.length} {item.media.length === 1 ? "photo" : "media"}
-                          {hasVideo ? " incl. video" : ""}
-                        </span>
-                        {!user.settings.surpriseMode && item.giftState !== "available" ? (
-                          <>
-                            <span aria-hidden className="opacity-40">·</span>
-                            <span className="text-accent">
-                              {item.giftState === "purchased" ? "Bought" : "Claimed"}
-                            </span>
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
+                    {/* On a phone the buttons sit under the name, so a long name
+                        gets the width instead of wrapping one word per line. */}
+                    <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[15.5px] font-medium leading-tight">{item.name}</h3>
+                        <p className="label mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          {item.priceCents != null ? (
+                            <span className="numeric">{money(item.priceCents, item.currency)}</span>
+                          ) : (
+                            <span>No price</span>
+                          )}
+                          <span aria-hidden className="opacity-40">·</span>
+                          <span>{PRIORITY[item.priority].short}</span>
+                          <span aria-hidden className="opacity-40">·</span>
+                          <span>
+                            {item.media.length} {item.media.length === 1 ? "photo" : "media"}
+                            {hasVideo ? " incl. video" : ""}
+                          </span>
+                          {!user.settings.surpriseMode && item.giftState !== "available" ? (
+                            <>
+                              <span aria-hidden className="opacity-40">·</span>
+                              <span className="text-accent">
+                                {item.giftState === "purchased" ? "Bought" : "Claimed"}
+                              </span>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
 
-                    <div className="flex shrink-0 items-center gap-1">
-                      <ItemComposer
-                        listId={list.id}
-                        listTitle={list.title}
-                        item={item}
-                        trigger={{ label: "Edit", className: "btn btn-ghost btn-sm text-muted hover:text-fg" }}
-                      />
-                      <ConfirmButton action={deleteItemAction} hidden={{ itemId: item.id }} />
+                      <div className="-ml-3 mt-1 flex items-center gap-1 sm:ml-0 sm:mt-0 sm:shrink-0">
+                        <ItemComposer
+                          listId={list.id}
+                          listTitle={list.title}
+                          item={item}
+                          trigger={{ label: "Edit", className: "btn btn-ghost btn-sm text-muted hover:text-fg" }}
+                        />
+                        <ConfirmButton action={deleteItemAction} hidden={{ itemId: item.id }} />
+                      </div>
                     </div>
-                  </div>
-                </li>
-              );
+                  </>
+                ),
+              };
             })}
-          </ul>
+          />
         )}
       </section>
 

@@ -318,6 +318,89 @@ section("Surprise mode off (Maya)");
 }
 
 // ===========================================================================
+section("Owner order and the visitor's price filter");
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const problems = watch(page, "order");
+  await signIn(page, "hunter");
+
+  const visitorNames = async (url) => {
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await settle(page);
+    return page.locator("[data-item-state] h3").allTextContents();
+  };
+
+  // Find the photography list's editor from the dashboard.
+  await page.goto(`${BASE}/hunter/photography`, { waitUntil: "domcontentloaded" });
+  const editHref = await page.getByRole("link", { name: "Edit list" }).getAttribute("href");
+  const before = await visitorNames(`${BASE}/hunter/photography`);
+
+  // Move the last item to the top from the keyboard: focus its handle, press Home.
+  await page.goto(`${BASE}${editHref}`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  const last = before[before.length - 1];
+  await page.getByRole("button", { name: new RegExp(`^Reorder ${last.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }).focus();
+  await page.keyboard.press("Home");
+  await page.getByText("Order saved").waitFor({ timeout: 10000 });
+  check("the handle's Home key moves an item to the top and saves", true);
+
+  // The arrow buttons move the first item down one place.
+  await page.getByRole("button", { name: `Move ${last} down` }).click();
+  await page.getByText("Order saved").waitFor({ timeout: 10000 });
+  const after = await visitorNames(`${BASE}/hunter/photography`);
+  check(
+    "visitors see the owner's new order",
+    after[0] === before[0] && after[1] === last && after.length === before.length,
+    after.slice(0, 3).join(", "),
+  );
+
+  // Price filter and sort, signed out.
+  const shownPrices = (p) =>
+    p.$$eval("[data-item-state]", (cards) =>
+      cards.map((c) => Number((c.querySelector(".numeric")?.textContent ?? "").replace(/[^0-9.]/g, ""))),
+    );
+  const visitor = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const v = await visitor.newPage();
+  const visitorProblems = watch(v, "visitor");
+  await v.goto(`${BASE}/hunter/photography`, { waitUntil: "domcontentloaded" });
+  await settle(v);
+  const all = await v.locator("[data-item-state]").count();
+  await v.getByLabel("Price").selectOption("100-up");
+  const prices = await shownPrices(v);
+  check(
+    "the $100 and up band shows only items at $100 or more",
+    prices.length > 0 && prices.length < all && prices.every((p) => p >= 100),
+    prices.join(", "),
+  );
+  check("the filter is written into the address", v.url().includes("price=100-up"));
+
+  await v.getByLabel("Order").selectOption("price-low");
+  const sorted = await shownPrices(v);
+  check(
+    "sorting low to high orders by price",
+    sorted.every((p, i) => i === 0 || sorted[i - 1] <= p),
+    sorted.join(", "),
+  );
+
+  await v.getByRole("button", { name: "Clear filters" }).click();
+  check("clearing filters shows everything again", (await v.locator("[data-item-state]").count()) === all);
+
+  // A shared filtered link opens filtered.
+  await v.goto(`${BASE}/hunter/photography?price=under-25`, { waitUntil: "domcontentloaded" });
+  await settle(v);
+  check(
+    "a price band with nothing in it says so",
+    (await v.getByRole("heading", { name: "Nothing matches that" }).count()) === 1,
+  );
+
+  const allProblems = [...problems, ...visitorProblems];
+  check("no client errors while ordering and filtering", allProblems.length === 0, allProblems.join(" | "));
+  await visitor.close();
+  await ctx.close();
+}
+
+// ===========================================================================
 section("Phone layout — nothing scrolls sideways");
 {
   const ctx = await browser.newContext({
